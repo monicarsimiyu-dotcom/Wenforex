@@ -1,0 +1,94 @@
+{
+  "colorScheme": "dark",
+  "fonts": [
+    {
+      "family": "DM Sans",
+      "count": 6
+    },
+    {
+      "family": "Arial",
+      "count": 6
+    },
+    {
+      "family": "sans-serif",
+      "count": 6
+    }
+  ],
+  "colors": {
+    "primary": "#FFA127",
+    "accent": "#0B2040",
+    "background": "#373737",
+    "textPrimary": "#0B2040",
+    "link": "#0B2040"
+  },
+  "typography": {
+    "fontFamilies": {
+      "primary": "DM Sans",
+      "heading": "DM Sans"
+    },
+    "fontStacks": {
+      "body": [
+        "DM Sans",
+        "Arial",
+        "sans-serif"
+      ],
+      "heading": [
+        "DM Sans",
+        "Arial",
+        "sans-serif"
+      ],
+      "paragraph": [
+        "DM Sans",
+        "Arial",
+        "sans-serif"
+      ]
+    },
+    "fontSizes": {
+      "h1": "14px",
+      "h2": "96px",
+      "body": "14px"
+    }
+  },
+  "spacing": {
+    "baseUnit": 4,
+    "borderRadius": "8px"
+  },
+  "components": {},
+  "images": {
+    "logo": null,
+    "favicon": "https://binany.com/images/favicon/apple-icon-57x57.png",
+    "ogImage": null
+  },
+  "__framework_hints": [],
+  "personality": {
+    "tone": "professional",
+    "energy": "medium",
+    "targetAudience": "unknown"
+  },
+  "designSystem": {
+    "framework": "unknown",
+    "componentLibrary": ""
+  },
+  "confidence": {
+    "buttons": 0,
+    "colors": 0,
+    "overall": 0
+  },
+  "__llm_metadata": {
+    "logoSelection": {
+      "llmCalled": false,
+      "llmSucceeded": false,
+      "finalSource": "none",
+      "rawLogoSelection": {
+        "selectedLogoIndex": -1,
+        "selectedLogoReasoning": "LLM failed",
+        "confidence": 0
+      }
+    },
+    "buttonClassification": {
+      "llmCalled": false,
+      "llmSucceeded": false,
+      "error": "LLM call failed or returned fallback values"
+    }
+  }
+}
