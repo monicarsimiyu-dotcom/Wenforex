@@ -1,21 +1,41 @@
-import { pgTable, text, serial, integer, boolean, timestamp, numeric, doublePrecision } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { index, jsonb, pgTable, timestamp, varchar, text, serial, numeric } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import * as auth from "./models/auth";
 
-export const users = auth.users;
+// --- Auth Tables ---
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)]
+);
 
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// --- Trading Tables ---
 export const trades = pgTable("trades", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
-  market: text("market").notNull(), // e.g., "BTC/USD", "Volatility 100"
-  direction: text("direction").notNull(), // "buy" (up/call) or "sell" (down/put)
+  market: text("market").notNull(),
+  direction: text("direction").notNull(),
   amount: numeric("amount").notNull(),
   entryPrice: numeric("entry_price").notNull(),
   exitPrice: numeric("exit_price"),
-  status: text("status").notNull().default("active"), // active, won, lost
-  payout: numeric("payout"), // Amount won (0 if lost)
+  status: text("status").notNull().default("active"),
+  payout: numeric("payout"),
   createdAt: timestamp("created_at").defaultNow(),
   closedAt: timestamp("closed_at"),
 });
@@ -23,10 +43,10 @@ export const trades = pgTable("trades", {
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   userId: text("user_id").notNull(),
-  type: text("type").notNull(), // deposit, withdrawal
+  type: text("type").notNull(),
   amount: numeric("amount").notNull(),
-  status: text("status").notNull().default("pending"), // pending, completed, failed
-  reference: text("reference"), // Paystack reference
+  status: text("status").notNull().default("pending"),
+  reference: text("reference"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -36,7 +56,7 @@ export const wallets = pgTable("wallets", {
   balance: numeric("balance").notNull().default("0"),
 });
 
-// Relations
+// --- Relations ---
 export const tradesRelations = relations(trades, ({ one }) => ({
   user: one(users, {
     fields: [trades.userId],
@@ -58,7 +78,7 @@ export const walletsRelations = relations(wallets, ({ one }) => ({
   }),
 }));
 
-// Schemas
+// --- Schemas & Types ---
 export const insertTradeSchema = createInsertSchema(trades).omit({ 
   id: true, 
   createdAt: true, 
@@ -66,46 +86,20 @@ export const insertTradeSchema = createInsertSchema(trades).omit({
   exitPrice: true,
   status: true,
   payout: true,
-  userId: true // set by server
+  userId: true 
 });
 
 export const insertTransactionSchema = createInsertSchema(transactions).omit({ 
   id: true, 
   createdAt: true, 
   status: true,
-  userId: true // set by server
+  userId: true 
 });
 
-// Types
 export type Trade = typeof trades.$inferSelect;
 export type InsertTrade = z.infer<typeof insertTradeSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Wallet = typeof wallets.$inferSelect;
-
-export type User = typeof users.$inferSelect; // Re-export User type
-
-// API Types
-export type CreateTradeRequest = {
-  market: string;
-  direction: "buy" | "sell";
-  amount: number;
-  duration: number; // in seconds
-};
-
-export type DepositRequest = {
-  amount: number;
-  email: string;
-};
-
-export type WithdrawRequest = {
-  amount: number;
-  accountNumber: string;
-  bankCode: string;
-};
-
-export type MarketData = {
-  market: string;
-  price: number;
-  timestamp: number;
-};
+export type User = typeof users.$inferSelect;
+export type UpsertUser = typeof users.$inferInsert;
