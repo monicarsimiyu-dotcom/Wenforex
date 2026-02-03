@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertTradeSchema, insertTransactionSchema, trades, transactions, wallets } from './schema';
+import { trades, transactions, wallets } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -18,6 +18,17 @@ export const errorSchemas = {
 };
 
 export const api = {
+  auth: {
+    toggleAccount: {
+      method: 'POST' as const,
+      path: '/api/auth/toggle-account',
+      input: z.object({ type: z.enum(["demo", "live"]) }),
+      responses: {
+        200: z.object({ activeAccountType: z.string() }),
+        401: errorSchemas.unauthorized,
+      },
+    },
+  },
   trades: {
     list: {
       method: 'GET' as const,
@@ -34,7 +45,7 @@ export const api = {
         market: z.string(),
         direction: z.enum(["buy", "sell"]),
         amount: z.number().min(1),
-        duration: z.number().min(5), // Minimum 5 seconds trade
+        duration: z.number().min(1), // in minutes
       }),
       responses: {
         201: z.custom<typeof trades.$inferSelect>(),
@@ -66,7 +77,7 @@ export const api = {
       method: 'POST' as const,
       path: '/api/transactions/deposit',
       input: z.object({
-        amount: z.number().min(100), // Minimum deposit
+        amount: z.number().min(100),
         email: z.string().email(),
       }),
       responses: {
@@ -80,8 +91,12 @@ export const api = {
       path: '/api/transactions/withdraw',
       input: z.object({
         amount: z.number().min(100),
-        accountNumber: z.string(),
-        bankCode: z.string(),
+        method: z.enum(["bank", "mpesa"]),
+        details: z.object({
+          accountNumber: z.string(),
+          bankCode: z.string().optional(),
+          phoneNumber: z.string().optional(),
+        }),
       }),
       responses: {
         200: z.custom<typeof transactions.$inferSelect>(),
@@ -104,13 +119,12 @@ export function buildUrl(path: string, params?: Record<string, string | number>)
   return url;
 }
 
-// WebSocket Events
 export const ws = {
   send: {
     subscribe: z.object({ market: z.string() }),
   },
   receive: {
     priceUpdate: z.object({ market: z.string(), price: z.number(), timestamp: z.number() }),
-    tradeResult: z.object({ tradeId: z.number(), result: z.enum(["won", "lost"]), payout: z.number() }),
+    tradeResult: z.object({ tradeId: z.number(), result: z.enum(["won", "lost"]), payout: z.number(), userId: z.string() }),
   },
 };

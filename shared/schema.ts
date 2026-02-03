@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, timestamp, varchar, text, serial, numeric } from "drizzle-orm/pg-core";
+import { index, jsonb, pgTable, timestamp, varchar, text, serial, numeric, boolean } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -21,6 +21,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  activeAccountType: text("active_account_type").notNull().default("demo"), // "live" or "demo"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -36,6 +37,7 @@ export const trades = pgTable("trades", {
   exitPrice: numeric("exit_price"),
   status: text("status").notNull().default("active"),
   payout: numeric("payout"),
+  accountType: text("account_type").notNull().default("demo"), // demo or live
   createdAt: timestamp("created_at").defaultNow(),
   closedAt: timestamp("closed_at"),
 });
@@ -47,12 +49,15 @@ export const transactions = pgTable("transactions", {
   amount: numeric("amount").notNull(),
   status: text("status").notNull().default("pending"),
   reference: text("reference"),
+  paymentMethod: text("payment_method").notNull().default("paystack"), // paystack, mpesa
+  accountType: text("account_type").notNull().default("live"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const wallets = pgTable("wallets", {
   id: serial("id").primaryKey(),
-  userId: text("user_id").notNull().unique(),
+  userId: text("user_id").notNull(),
+  accountType: text("account_type").notNull().default("demo"), // demo or live
   balance: numeric("balance").notNull().default("0"),
 });
 
@@ -71,11 +76,12 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
-export const walletsRelations = relations(wallets, ({ one }) => ({
-  user: one(users, {
-    fields: [wallets.userId],
-    references: [users.id],
-  }),
+export const walletsRelations = relations(wallets, ({ many }) => ({
+  wallets: many(wallets),
+}));
+
+export const userRelations = relations(users, ({ many }) => ({
+  wallets: many(wallets),
 }));
 
 // --- Schemas & Types ---
