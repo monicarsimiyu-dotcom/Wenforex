@@ -94,9 +94,9 @@ export default function Dashboard() {
     <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
       <Header onDeposit={() => setDepositOpen(true)} onWithdraw={() => setWithdrawOpen(true)} />
 
-      <main className="flex-1 grid grid-cols-12 grid-rows-[auto_1fr] lg:grid-rows-1 gap-px bg-border/40">
+      <main className="grid grid-cols-12 gap-px bg-border/40">
         {/* ==== Chart center ==== */}
-        <section className="col-span-12 lg:col-span-9 flex flex-col bg-background/60 min-h-[300px]">
+        <section className="col-span-12 lg:col-span-9 flex flex-col bg-background/60 min-h-[85vh]">
           {/* Market tabs */}
           <div
             className="h-12 border-b border-border/50 flex items-center px-2 bg-card/30 gap-1 overflow-x-auto shrink-0"
@@ -169,7 +169,7 @@ export default function Dashboard() {
         </section>
 
         {/* ==== Trade panel (right) ==== */}
-        <aside className="col-span-12 lg:col-span-3 bg-card/40 flex flex-col p-3 gap-3 overflow-y-auto" data-testid="trade-panel">
+        <aside className="col-span-12 lg:col-span-3 bg-card/40 flex flex-col p-3 gap-3" data-testid="trade-panel">
           {/* Amount */}
           <div>
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -254,22 +254,22 @@ export default function Dashboard() {
           </div>
 
           {/* Trade buttons */}
-          <div className="space-y-2 mt-auto pt-2">
+          <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
             <Button
               onClick={() => handleTrade("buy")}
               disabled={isTrading || authLoading}
-              className="w-full h-16 text-lg font-extrabold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/30 rounded-lg"
+              className="h-14 text-base font-extrabold bg-green-600 hover:bg-green-700 text-white border-0 shadow-none rounded-md"
               data-testid="button-call"
             >
-              <TrendingUp className="w-6 h-6 mr-2" /> CALL
+              <TrendingUp className="w-5 h-5 mr-1" /> CALL
             </Button>
             <Button
               onClick={() => handleTrade("sell")}
               disabled={isTrading || authLoading}
-              className="w-full h-16 text-lg font-extrabold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/30 rounded-lg"
+              className="h-14 text-base font-extrabold bg-red-600 hover:bg-red-700 text-white border-0 shadow-none rounded-md"
               data-testid="button-put"
             >
-              <TrendingDown className="w-6 h-6 mr-2" /> PUT
+              <TrendingDown className="w-5 h-5 mr-1" /> PUT
             </Button>
           </div>
         </aside>
