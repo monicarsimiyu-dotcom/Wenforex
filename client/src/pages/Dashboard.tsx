@@ -147,14 +147,14 @@ export default function Dashboard() {
             <TradingChart currentPrice={currentPrice} marketKey={market} />
           </div>
 
-          {/* History strip */}
-          <div className="h-36 border-t border-border/50 bg-card/20 shrink-0 overflow-hidden">
+          {/* History strip (compact) */}
+          <div className="h-20 border-t border-border/50 bg-card/20 shrink-0 overflow-hidden">
             <Tabs defaultValue="active" className="h-full flex flex-col">
-              <TabsList className="bg-transparent h-8 px-2 justify-start gap-1 rounded-none">
-                <TabsTrigger value="active" className="h-7 text-[11px] px-3" data-testid="tab-active-trades">
+              <TabsList className="bg-transparent h-7 px-2 justify-start gap-1 rounded-none shrink-0">
+                <TabsTrigger value="active" className="h-6 text-[10px] px-2" data-testid="tab-active-trades">
                   Open ({activeTrades.length})
                 </TabsTrigger>
-                <TabsTrigger value="history" className="h-7 text-[11px] px-3" data-testid="tab-history">
+                <TabsTrigger value="history" className="h-6 text-[10px] px-2" data-testid="tab-history">
                   History
                 </TabsTrigger>
               </TabsList>
@@ -254,22 +254,22 @@ export default function Dashboard() {
           </div>
 
           {/* Trade buttons */}
-          <div className="grid grid-cols-2 gap-2 mt-auto">
+          <div className="space-y-2 mt-auto pt-2">
             <Button
               onClick={() => handleTrade("buy")}
               disabled={isTrading || authLoading}
-              className="h-14 text-base font-extrabold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/20"
+              className="w-full h-16 text-lg font-extrabold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/30 rounded-lg"
               data-testid="button-call"
             >
-              <TrendingUp className="w-5 h-5 mr-1" /> CALL
+              <TrendingUp className="w-6 h-6 mr-2" /> CALL
             </Button>
             <Button
               onClick={() => handleTrade("sell")}
               disabled={isTrading || authLoading}
-              className="h-14 text-base font-extrabold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20"
+              className="w-full h-16 text-lg font-extrabold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/30 rounded-lg"
               data-testid="button-put"
             >
-              <TrendingDown className="w-5 h-5 mr-1" /> PUT
+              <TrendingDown className="w-6 h-6 mr-2" /> PUT
             </Button>
           </div>
         </aside>
