@@ -21,7 +21,16 @@ const MARKETS = [
   { code: "GOLD",    label: "Gold",  icon: "Au", color: "text-yellow-400" },
 ];
 
-const DURATIONS = [1, 2, 5, 15, 30]; // minutes
+// Durations in seconds with display labels
+const DURATIONS: { value: number; label: string }[] = [
+  { value: 15, label: "15s" },
+  { value: 30, label: "30s" },
+  { value: 60, label: "1m" },
+  { value: 120, label: "2m" },
+  { value: 300, label: "5m" },
+  { value: 900, label: "15m" },
+  { value: 1800, label: "30m" },
+];
 const PROFIT_PCT = 82;
 
 export default function Dashboard() {
@@ -33,7 +42,7 @@ export default function Dashboard() {
 
   const [market, setMarket] = useState("BTC/USD");
   const [amount, setAmount] = useState(100);
-  const [duration, setDuration] = useState(1);
+  const [duration, setDuration] = useState(60);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 
@@ -77,7 +86,7 @@ export default function Dashboard() {
         onSuccess: () => {
           toast({
             title: `${direction === "buy" ? "CALL ↑" : "PUT ↓"} placed`,
-            description: `KSh ${amount} on ${market} for ${duration} min`,
+            description: `KSh ${amount} on ${market} for ${duration < 60 ? `${duration}s` : `${duration / 60}m`}`,
           });
         },
         onError: (err: any) => {
@@ -221,19 +230,19 @@ export default function Dashboard() {
             <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" /> Duration
             </label>
-            <div className="grid grid-cols-5 gap-1 mt-1">
+            <div className="grid grid-cols-4 gap-1 mt-1">
               {DURATIONS.map((d) => (
                 <button
-                  key={d}
-                  onClick={() => setDuration(d)}
+                  key={d.value}
+                  onClick={() => setDuration(d.value)}
                   className={`h-9 rounded font-bold text-xs transition-all ${
-                    duration === d
+                    duration === d.value
                       ? "bg-primary text-primary-foreground"
                       : "bg-background/50 border border-white/10 text-muted-foreground hover:text-white"
                   }`}
-                  data-testid={`button-duration-${d}`}
+                  data-testid={`button-duration-${d.value}`}
                 >
-                  {d}m
+                  {d.label}
                 </button>
               ))}
             </div>

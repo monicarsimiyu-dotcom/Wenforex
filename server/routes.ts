@@ -107,8 +107,8 @@ export async function registerRoutes(
         entryPrice: String(market.price),
       });
 
-      // Resolve trade after duration (minutes -> milliseconds)
-      const ms = input.duration * 60 * 1000;
+      // Resolve trade after duration (seconds -> milliseconds)
+      const ms = input.duration * 1000;
       setTimeout(async () => {
         const exitPrice = markets[input.market]?.price ?? market.price;
         const entryPrice = Number(trade.entryPrice);

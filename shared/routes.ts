@@ -45,7 +45,7 @@ export const api = {
         market: z.string(),
         direction: z.enum(["buy", "sell"]),
         amount: z.number().min(1),
-        duration: z.number().min(1), // in minutes
+        duration: z.number().min(15), // in seconds
       }),
       responses: {
         201: z.custom<typeof trades.$inferSelect>(),
