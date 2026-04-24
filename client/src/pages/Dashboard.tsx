@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { TrendingUp, TrendingDown, Clock, Activity, Minus, Plus, Lock } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Activity, Minus, Plus } from "lucide-react";
 import { format } from "date-fns";
 
 const MARKETS = [
@@ -91,10 +91,10 @@ export default function Dashboard() {
   const closedTrades = (trades || []).filter((t: any) => t.status !== "active").slice(0, 20);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
       <Header onDeposit={() => setDepositOpen(true)} onWithdraw={() => setWithdrawOpen(true)} />
 
-      <main className="flex-1 grid grid-cols-12 grid-rows-[auto_1fr] lg:grid-rows-1 gap-px bg-border/40 overflow-hidden">
+      <main className="flex-1 grid grid-cols-12 grid-rows-[auto_1fr] lg:grid-rows-1 gap-px bg-border/40">
         {/* ==== Markets list (left) ==== */}
         <aside className="col-span-12 lg:col-span-2 row-span-1 bg-card/40 overflow-y-auto" data-testid="market-list">
           <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
@@ -277,33 +277,6 @@ export default function Dashboard() {
           </div>
         </aside>
       </main>
-
-      {/* Login overlay if not authenticated */}
-      {!authLoading && !user && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="glass-modal max-w-sm w-full p-8 rounded-2xl text-center" data-testid="login-overlay">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-primary-foreground font-black text-xl mx-auto mb-4 shadow-xl shadow-orange-900/30">
-              W
-            </div>
-            <h1 className="text-2xl font-black mb-1">
-              wen<span className="text-primary">forex</span>
-            </h1>
-            <p className="text-sm text-muted-foreground mb-6">
-              Trade BTC, ETH, Forex & Gold in real time. Deposit & withdraw via M-PESA.
-            </p>
-            <Button
-              onClick={() => (window.location.href = "/api/login")}
-              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-              data-testid="button-login-overlay"
-            >
-              <Lock className="w-4 h-4 mr-2" /> Sign in to Trade
-            </Button>
-            <p className="text-[10px] text-muted-foreground mt-4">
-              Secure sign-in via Replit • Demo account starts with KSh 10,000
-            </p>
-          </div>
-        </div>
-      )}
 
       <DepositModal open={depositOpen} onOpenChange={setDepositOpen} userEmail={user?.email || ""} />
       <WithdrawModal open={withdrawOpen} onOpenChange={setWithdrawOpen} />
