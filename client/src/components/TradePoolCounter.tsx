@@ -84,7 +84,7 @@ export function TradePoolCounter() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
-                Wenforex · Total Trade Pool
+                Total across wenforex platform
               </span>
             </div>
             <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
@@ -92,14 +92,14 @@ export function TradePoolCounter() {
             </span>
           </div>
 
-          <div className="flex items-baseline gap-2 md:gap-3 flex-wrap" data-testid="text-trade-pool-value">
-            <span className="font-mono font-light text-3xl md:text-5xl text-muted-foreground/70 leading-none">
+          <div className="flex items-baseline gap-1 md:gap-2 whitespace-nowrap" data-testid="text-trade-pool-value">
+            <span className="font-mono font-light text-2xl md:text-3xl text-muted-foreground/70 leading-none">
               $
             </span>
-            <span className="font-mono font-black text-5xl md:text-7xl lg:text-8xl text-white tabular-nums tracking-tight leading-none">
+            <span className="font-mono font-black text-3xl md:text-5xl text-white tabular-nums tracking-tight leading-none">
               {dollars.toLocaleString("en-US")}
             </span>
-            <span className="font-mono font-bold text-2xl md:text-4xl text-muted-foreground/80 tabular-nums leading-none">
+            <span className="font-mono font-bold text-lg md:text-2xl text-muted-foreground/80 tabular-nums leading-none">
               .{cents}
             </span>
           </div>
