@@ -1,250 +1,346 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTrades, useCreateTrade } from "@/hooks/use-trades";
-import { useWallet } from "@/hooks/use-wallet";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { Header } from "@/components/Header";
 import { TradingChart } from "@/components/TradingChart";
 import { DepositModal, WithdrawModal } from "@/components/TransactionModals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, TrendingUp, TrendingDown, Clock, History, Activity } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, Activity, Minus, Plus, Lock } from "lucide-react";
 import { format } from "date-fns";
 
+const MARKETS = [
+  { code: "BTC/USD", label: "Bitcoin", icon: "₿", color: "text-orange-400" },
+  { code: "ETH/USD", label: "Ethereum", icon: "Ξ", color: "text-indigo-400" },
+  { code: "EUR/USD", label: "Euro", icon: "€", color: "text-blue-400" },
+  { code: "GBP/USD", label: "Pound", icon: "£", color: "text-emerald-400" },
+  { code: "USD/JPY", label: "Yen", icon: "¥", color: "text-pink-400" },
+  { code: "GOLD",    label: "Gold",  icon: "Au", color: "text-yellow-400" },
+];
+
+const DURATIONS = [1, 2, 5, 15, 30]; // minutes
+const PROFIT_PCT = 82;
+
 export default function Dashboard() {
-  const { user } = useAuth();
-  const { currentPrice, isConnected } = useWebSocket();
-  const { data: trades, isLoading: tradesLoading } = useTrades();
+  const { user, isLoading: authLoading } = useAuth();
+  const { prices, isConnected } = useWebSocket();
+  const { data: trades } = useTrades();
   const { mutate: createTrade, isPending: isTrading } = useCreateTrade();
   const { toast } = useToast();
-  
-  const [amount, setAmount] = useState(10);
-  const [duration, setDuration] = useState(60); // seconds
+
+  const [market, setMarket] = useState("BTC/USD");
+  const [amount, setAmount] = useState(100);
+  const [duration, setDuration] = useState(1);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 
-  const profitPercentage = 82; // Static for now, usually dynamic
-  const potentialProfit = (amount * (profitPercentage / 100)).toFixed(2);
+  const currentPrice = prices[market] || 0;
+  const potentialProfit = (amount * (PROFIT_PCT / 100)).toFixed(2);
+
+  // Show toast on Paystack callback return
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("paystack")) {
+      const reference = url.searchParams.get("reference");
+      if (reference) {
+        fetch(`/api/paystack/verify?reference=${reference}`)
+          .then((r) => r.json())
+          .then((d) => {
+            if (d.status === "success") {
+              toast({ title: "Deposit successful", description: "Your live wallet has been credited." });
+            } else {
+              toast({ title: "Payment pending", description: "We'll credit your wallet once it confirms." });
+            }
+          });
+      }
+      url.searchParams.delete("paystack");
+      url.searchParams.delete("reference");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [toast]);
 
   const handleTrade = (direction: "buy" | "sell") => {
-    if (!currentPrice) {
-      toast({ title: "Error", description: "Waiting for market data...", variant: "destructive" });
+    if (!user) {
+      window.location.href = "/api/login";
       return;
     }
-
-    createTrade({
-      market: "BTC/USD",
-      direction,
-      amount,
-      duration,
-    }, {
-      onSuccess: () => {
-        toast({ title: "Trade Placed", description: `${direction === 'buy' ? 'CALL' : 'PUT'} trade for $${amount}` });
+    if (!currentPrice) {
+      toast({ title: "Wait for market data", description: "Connecting to live feed...", variant: "destructive" });
+      return;
+    }
+    createTrade(
+      { market, direction, amount, duration },
+      {
+        onSuccess: () => {
+          toast({
+            title: `${direction === "buy" ? "CALL ↑" : "PUT ↓"} placed`,
+            description: `KSh ${amount} on ${market} for ${duration} min`,
+          });
+        },
+        onError: (err: any) => {
+          toast({ title: "Trade failed", description: err.message, variant: "destructive" });
+        },
       }
-    });
+    );
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
-      <Header 
-        onDeposit={() => setDepositOpen(true)} 
-        onWithdraw={() => setWithdrawOpen(true)} 
-      />
+  const activeTrades = (trades || []).filter((t: any) => t.status === "active");
+  const closedTrades = (trades || []).filter((t: any) => t.status !== "active").slice(0, 20);
 
-      <main className="flex-1 flex flex-col lg:flex-row h-[calc(100vh-64px)] overflow-hidden">
-        
-        {/* LEFT: Chart & Assets */}
-        <div className="flex-1 flex flex-col min-h-[50vh] relative border-r border-border">
-          {/* Asset Info Bar */}
-          <div className="h-12 border-b border-border flex items-center px-4 bg-card/30 justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center">
-                <span className="text-orange-500 font-bold text-xs">₿</span>
-              </div>
-              <span className="font-bold text-sm">BTC/USD</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${isConnected ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                {isConnected ? 'Live' : 'Connecting...'}
+  return (
+    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
+      <Header onDeposit={() => setDepositOpen(true)} onWithdraw={() => setWithdrawOpen(true)} />
+
+      <main className="flex-1 grid grid-cols-12 grid-rows-[auto_1fr] lg:grid-rows-1 gap-px bg-border/40 overflow-hidden">
+        {/* ==== Markets list (left) ==== */}
+        <aside className="col-span-12 lg:col-span-2 row-span-1 bg-card/40 overflow-y-auto" data-testid="market-list">
+          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
+            Markets
+          </div>
+          {MARKETS.map((m) => {
+            const price = prices[m.code] || 0;
+            const isActive = market === m.code;
+            return (
+              <button
+                key={m.code}
+                onClick={() => setMarket(m.code)}
+                className={`w-full px-3 py-2.5 flex items-center justify-between border-b border-border/30 transition-colors ${
+                  isActive ? "bg-primary/10 border-l-2 border-l-primary" : "hover:bg-white/5"
+                }`}
+                data-testid={`market-${m.code.replace("/", "-")}`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`font-mono font-bold w-5 text-center ${m.color}`}>{m.icon}</span>
+                  <div className="text-left min-w-0">
+                    <div className="text-xs font-bold truncate">{m.code}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{m.label}</div>
+                  </div>
+                </div>
+                <div className="text-[11px] font-mono font-bold text-right">
+                  {price > 0 ? price.toFixed(price > 100 ? 2 : 4) : "—"}
+                </div>
+              </button>
+            );
+          })}
+        </aside>
+
+        {/* ==== Chart center ==== */}
+        <section className="col-span-12 lg:col-span-7 flex flex-col bg-background/60 min-h-[300px]">
+          {/* Asset bar */}
+          <div className="h-10 border-b border-border/50 flex items-center px-4 bg-card/30 justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <span className="font-bold text-sm" data-testid="text-current-market">{market}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isConnected ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
+                {isConnected ? "● LIVE" : "OFFLINE"}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                Payout <span className="text-green-400 font-bold">+{PROFIT_PCT}%</span>
               </span>
             </div>
-            <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
-              <span>Payout: <span className="text-green-500 font-bold">{profitPercentage}%</span></span>
+            <div className="font-mono font-bold text-sm text-primary" data-testid="text-current-price">
+              {currentPrice > 0 ? currentPrice.toFixed(currentPrice > 100 ? 2 : 4) : "..."}
             </div>
           </div>
 
-          {/* Chart Area */}
-          <div className="flex-1 relative bg-gradient-to-b from-background to-background/50">
-            <TradingChart currentPrice={currentPrice} />
+          {/* Chart */}
+          <div className="flex-1 relative" data-testid="chart-area">
+            <TradingChart currentPrice={currentPrice} marketKey={market} />
           </div>
 
-          {/* Bottom Trades List (Desktop) */}
-          <div className="h-64 border-t border-border bg-card/20 hidden lg:block">
+          {/* History strip */}
+          <div className="h-36 border-t border-border/50 bg-card/20 shrink-0 overflow-hidden">
             <Tabs defaultValue="active" className="h-full flex flex-col">
-              <div className="px-4 py-2 border-b border-border flex items-center justify-between">
-                <TabsList className="bg-transparent p-0 gap-4">
-                  <TabsTrigger value="active" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-full px-4 h-8">Active Trades</TabsTrigger>
-                  <TabsTrigger value="history" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary rounded-full px-4 h-8">History</TabsTrigger>
-                </TabsList>
-              </div>
-              <ScrollArea className="flex-1">
-                <TabsContent value="active" className="m-0">
-                  <TradeList trades={trades?.filter(t => t.status === 'active') || []} />
-                </TabsContent>
-                <TabsContent value="history" className="m-0">
-                  <TradeList trades={trades?.filter(t => t.status !== 'active') || []} />
-                </TabsContent>
-              </ScrollArea>
+              <TabsList className="bg-transparent h-8 px-2 justify-start gap-1 rounded-none">
+                <TabsTrigger value="active" className="h-7 text-[11px] px-3" data-testid="tab-active-trades">
+                  Open ({activeTrades.length})
+                </TabsTrigger>
+                <TabsTrigger value="history" className="h-7 text-[11px] px-3" data-testid="tab-history">
+                  History
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="active" className="flex-1 m-0 overflow-y-auto">
+                <TradeRows trades={activeTrades} />
+              </TabsContent>
+              <TabsContent value="history" className="flex-1 m-0 overflow-y-auto">
+                <TradeRows trades={closedTrades} />
+              </TabsContent>
             </Tabs>
           </div>
-        </div>
+        </section>
 
-        {/* RIGHT: Trading Panel */}
-        <div className="w-full lg:w-80 bg-card border-l border-border flex flex-col shadow-xl z-20">
-          <div className="p-6 space-y-6 flex-1">
-            
-            {/* Amount Input */}
-            <div className="space-y-2">
-              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Amount ($)</Label>
-              <div className="relative">
-                <Input 
-                  type="number" 
-                  value={amount}
-                  onChange={(e) => setAmount(Number(e.target.value))}
-                  className="h-12 text-lg font-mono bg-background/50 border-border focus:border-primary pr-12"
-                />
-                <div className="absolute right-0 top-0 h-full flex flex-col border-l border-border">
-                  <button onClick={() => setAmount(a => a + 1)} className="flex-1 px-2 hover:bg-white/5 text-xs">+</button>
-                  <button onClick={() => setAmount(a => Math.max(1, a - 1))} className="flex-1 px-2 hover:bg-white/5 text-xs">-</button>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-2">
-                {[10, 50, 100, 500].map(val => (
-                  <button 
-                    key={val}
-                    onClick={() => setAmount(val)}
-                    className="flex-1 py-1 text-xs rounded bg-white/5 hover:bg-white/10 transition-colors border border-white/5"
-                  >
-                    ${val}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Time Input */}
-            <div className="space-y-2">
-              <Label className="text-xs uppercase text-muted-foreground font-semibold tracking-wider">Time (Sec)</Label>
-              <div className="grid grid-cols-3 gap-2">
-                {[30, 60, 120].map(sec => (
-                  <button
-                    key={sec}
-                    onClick={() => setDuration(sec)}
-                    className={`h-10 rounded border text-sm font-medium transition-all ${
-                      duration === sec 
-                        ? 'bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20' 
-                        : 'bg-background/50 border-border hover:bg-white/5'
-                    }`}
-                  >
-                    {sec}s
-                  </button>
-                ))}
-              </div>
-              <div className="text-center text-xs text-muted-foreground pt-1 flex items-center justify-center gap-1">
-                 <Clock className="w-3 h-3" /> Closes at {format(new Date(Date.now() + duration * 1000), "HH:mm:ss")}
-              </div>
-            </div>
-
-            {/* Profit Info */}
-            <div className="p-4 rounded-xl bg-background/30 border border-white/5 space-y-1">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Profit</span>
-                <span className="text-green-500 font-bold">+{profitPercentage}%</span>
-              </div>
-              <div className="flex justify-between text-2xl font-bold text-green-400 font-mono">
-                <span>+${potentialProfit}</span>
-              </div>
-            </div>
-            
-            <div className="flex-1" />
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-4">
-              <Button 
-                onClick={() => handleTrade("buy")}
-                disabled={isTrading || !isConnected}
-                className="h-24 flex flex-col items-center justify-center bg-green-600 hover:bg-green-500 hover:-translate-y-1 transition-all shadow-lg shadow-green-900/30 border-b-4 border-green-800 active:border-b-0 active:translate-y-1"
+        {/* ==== Trade panel (right) ==== */}
+        <aside className="col-span-12 lg:col-span-3 bg-card/40 flex flex-col p-3 gap-3 overflow-y-auto" data-testid="trade-panel">
+          {/* Amount */}
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              Amount (KES)
+            </label>
+            <div className="flex items-center gap-1 mt-1">
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0 bg-background/50"
+                onClick={() => setAmount(Math.max(10, amount - 100))}
+                data-testid="button-amount-decrease"
               >
-                <TrendingUp className="w-8 h-8 mb-1" />
-                <span className="text-lg font-bold">CALL</span>
-                <span className="text-xs opacity-70">Price Up</span>
+                <Minus className="w-4 h-4" />
               </Button>
-
-              <Button 
-                onClick={() => handleTrade("sell")}
-                disabled={isTrading || !isConnected}
-                className="h-24 flex flex-col items-center justify-center bg-red-600 hover:bg-red-500 hover:-translate-y-1 transition-all shadow-lg shadow-red-900/30 border-b-4 border-red-800 active:border-b-0 active:translate-y-1"
+              <Input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(Math.max(10, Number(e.target.value) || 0))}
+                className="text-center font-mono font-bold text-base bg-background/50 border-white/10 h-10"
+                data-testid="input-amount"
+              />
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-10 w-10 shrink-0 bg-background/50"
+                onClick={() => setAmount(amount + 100)}
+                data-testid="button-amount-increase"
               >
-                <TrendingDown className="w-8 h-8 mb-1" />
-                <span className="text-lg font-bold">PUT</span>
-                <span className="text-xs opacity-70">Price Down</span>
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
-
+            <div className="flex flex-wrap gap-1 mt-2">
+              {[100, 500, 1000, 5000].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setAmount(v)}
+                  className="text-[10px] px-2 py-1 rounded border border-white/10 hover:border-primary hover:text-primary text-muted-foreground font-bold"
+                  data-testid={`button-quick-amount-${v}`}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Mobile Trades Sheet (Optional - could be a drawer) */}
+          {/* Duration */}
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Duration
+            </label>
+            <div className="grid grid-cols-5 gap-1 mt-1">
+              {DURATIONS.map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDuration(d)}
+                  className={`h-9 rounded font-bold text-xs transition-all ${
+                    duration === d
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background/50 border border-white/10 text-muted-foreground hover:text-white"
+                  }`}
+                  data-testid={`button-duration-${d}`}
+                >
+                  {d}m
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Profit preview */}
+          <div className="bg-background/50 border border-white/5 rounded-lg p-3 flex items-center justify-between">
+            <div>
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">Potential Profit</div>
+              <div className="font-mono font-bold text-green-400 text-lg" data-testid="text-potential-profit">
+                +KSh {potentialProfit}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">Payout</div>
+              <div className="font-mono font-bold text-primary">+{PROFIT_PCT}%</div>
+            </div>
+          </div>
+
+          {/* Trade buttons */}
+          <div className="grid grid-cols-2 gap-2 mt-auto">
+            <Button
+              onClick={() => handleTrade("buy")}
+              disabled={isTrading || authLoading}
+              className="h-14 text-base font-extrabold bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-900/20"
+              data-testid="button-call"
+            >
+              <TrendingUp className="w-5 h-5 mr-1" /> CALL
+            </Button>
+            <Button
+              onClick={() => handleTrade("sell")}
+              disabled={isTrading || authLoading}
+              className="h-14 text-base font-extrabold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-900/20"
+              data-testid="button-put"
+            >
+              <TrendingDown className="w-5 h-5 mr-1" /> PUT
+            </Button>
+          </div>
+        </aside>
       </main>
 
-      <DepositModal 
-        open={depositOpen} 
-        onOpenChange={setDepositOpen} 
-        userEmail={user?.email || ""}
-      />
-      <WithdrawModal 
-        open={withdrawOpen} 
-        onOpenChange={setWithdrawOpen} 
-      />
+      {/* Login overlay if not authenticated */}
+      {!authLoading && !user && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="glass-modal max-w-sm w-full p-8 rounded-2xl text-center" data-testid="login-overlay">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-primary-foreground font-black text-xl mx-auto mb-4 shadow-xl shadow-orange-900/30">
+              W
+            </div>
+            <h1 className="text-2xl font-black mb-1">
+              wen<span className="text-primary">forex</span>
+            </h1>
+            <p className="text-sm text-muted-foreground mb-6">
+              Trade BTC, ETH, Forex & Gold in real time. Deposit & withdraw via M-PESA.
+            </p>
+            <Button
+              onClick={() => (window.location.href = "/api/login")}
+              className="w-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+              data-testid="button-login-overlay"
+            >
+              <Lock className="w-4 h-4 mr-2" /> Sign in to Trade
+            </Button>
+            <p className="text-[10px] text-muted-foreground mt-4">
+              Secure sign-in via Replit • Demo account starts with KSh 10,000
+            </p>
+          </div>
+        </div>
+      )}
+
+      <DepositModal open={depositOpen} onOpenChange={setDepositOpen} userEmail={user?.email || ""} />
+      <WithdrawModal open={withdrawOpen} onOpenChange={setWithdrawOpen} />
     </div>
   );
 }
 
-function TradeList({ trades }: { trades: any[] }) {
+function TradeRows({ trades }: { trades: any[] }) {
   if (trades.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
-        <Activity className="w-10 h-10 mb-2 opacity-20" />
-        <p>No trades found</p>
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-4">
+        <Activity className="w-6 h-6 mb-1 opacity-30" />
+        <p className="text-xs">No trades</p>
       </div>
     );
   }
-
   return (
-    <div className="divide-y divide-border">
+    <div className="divide-y divide-border/30 text-xs">
       {trades.map((trade) => (
-        <div key={trade.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-          <div className="flex items-center gap-4">
-            <div className={`p-2 rounded-lg ${trade.direction === 'buy' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-              {trade.direction === 'buy' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
-            </div>
-            <div>
-              <p className="font-bold text-sm">{trade.market}</p>
-              <p className="text-xs text-muted-foreground">{format(new Date(trade.createdAt), "HH:mm:ss")}</p>
-            </div>
+        <div
+          key={trade.id}
+          className="px-3 py-1.5 grid grid-cols-12 items-center gap-2 hover:bg-white/5"
+          data-testid={`trade-row-${trade.id}`}
+        >
+          <div className={`col-span-1 ${trade.direction === "buy" ? "text-green-400" : "text-red-400"}`}>
+            {trade.direction === "buy" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
           </div>
-          
-          <div className="text-right">
-            <p className="font-mono font-bold">${Number(trade.amount).toFixed(2)}</p>
-            {trade.status === 'active' ? (
-              <Badge variant="outline" className="text-xs border-primary text-primary animate-pulse">Running</Badge>
+          <div className="col-span-3 font-bold truncate">{trade.market}</div>
+          <div className="col-span-2 font-mono text-muted-foreground">{format(new Date(trade.createdAt), "HH:mm")}</div>
+          <div className="col-span-3 font-mono text-right">KSh {Number(trade.amount).toFixed(0)}</div>
+          <div className="col-span-3 text-right font-mono font-bold">
+            {trade.status === "active" ? (
+              <span className="text-primary animate-pulse">Running</span>
+            ) : trade.status === "won" ? (
+              <span className="text-green-400">+{Number(trade.payout).toFixed(0)}</span>
             ) : (
-              <span className={`text-xs font-bold ${trade.status === 'won' ? 'text-green-500' : 'text-red-500'}`}>
-                {trade.status === 'won' ? `+$${Number(trade.payout).toFixed(2)}` : '-$0.00'}
-              </span>
+              <span className="text-red-400">-{Number(trade.amount).toFixed(0)}</span>
             )}
           </div>
         </div>

@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl } from "@shared/routes";
-import { trades, type CreateTradeRequest } from "@shared/schema";
-import { z } from "zod";
+import { api } from "@shared/routes";
+import type { CreateTradeRequest } from "@shared/schema";
 
 // Fetch all trades
 export function useTrades() {

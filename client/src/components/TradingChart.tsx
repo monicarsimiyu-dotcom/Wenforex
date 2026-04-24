@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface TradingChartProps {
   currentPrice: number;
+  marketKey?: string;
 }
 
 // Mock initial data generation
@@ -22,13 +23,13 @@ const generateInitialData = () => {
   return data;
 };
 
-export function TradingChart({ currentPrice }: TradingChartProps) {
+export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
   const [data, setData] = useState<{ time: number; price: number }[]>([]);
 
-  // Initialize with mock data
+  // Reset on market change
   useEffect(() => {
-    setData(generateInitialData());
-  }, []);
+    setData([]);
+  }, [marketKey]);
 
   // Update chart with live price
   useEffect(() => {
