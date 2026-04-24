@@ -5,7 +5,6 @@ import { useToggleAccount } from "@/hooks/use-toggle-account";
 import { Button } from "@/components/ui/button";
 import { Wallet, LogOut, ArrowDownToLine, ArrowUpFromLine, LogIn, UserPlus } from "lucide-react";
 import { AuthModal } from "@/components/AuthModal";
-import { TradePoolCounter } from "@/components/TradePoolCounter";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
@@ -52,11 +51,6 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
             wen<span className="text-primary">forex</span>
           </span>
         </div>
-      </div>
-
-      {/* Center: Trade pool counter */}
-      <div className="flex-1 flex justify-center px-2">
-        <TradePoolCounter />
       </div>
 
       {/* Right: Account toggle, balance, deposit, menu */}
