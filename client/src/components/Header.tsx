@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useWallet } from "@/hooks/use-wallet";
 import { useToggleAccount } from "@/hooks/use-toggle-account";
 import { Button } from "@/components/ui/button";
-import { Wallet, LogOut, ArrowDownToLine, ArrowUpFromLine } from "lucide-react";
+import { Wallet, LogOut, ArrowDownToLine, ArrowUpFromLine, LogIn, UserPlus } from "lucide-react";
+import { AuthModal } from "@/components/AuthModal";
+import { TradePoolCounter } from "@/components/TradePoolCounter";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,11 +23,22 @@ interface HeaderProps {
 }
 
 export function Header({ onDeposit, onWithdraw }: HeaderProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { data: wallet } = useWallet();
   const { mutate: toggle, isPending: toggling } = useToggleAccount();
+  const queryClient = useQueryClient();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authTab, setAuthTab] = useState<"login" | "register">("login");
 
   const isLive = user?.activeAccountType === "live";
+
+  function handleLogout() {
+    fetch("/api/local/logout", { method: "POST", credentials: "include" })
+      .then(() => {
+        queryClient.setQueryData(["/api/auth/user"], null);
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      });
+  }
 
   return (
     <header className="h-14 border-b border-border bg-card/60 backdrop-blur-md px-3 lg:px-5 flex items-center justify-between z-50 shrink-0">
@@ -37,6 +52,11 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
             wen<span className="text-primary">forex</span>
           </span>
         </div>
+      </div>
+
+      {/* Center: Trade pool counter */}
+      <div className="flex-1 flex justify-center px-2">
+        <TradePoolCounter />
       </div>
 
       {/* Right: Account toggle, balance, deposit, menu */}
@@ -138,7 +158,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
                   <Wallet className="mr-2 h-4 w-4" />
                   <span>Switch to {isLive ? "Demo" : "Live"}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => logout()} className="cursor-pointer text-red-400" data-testid="menu-logout">
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-400" data-testid="menu-logout">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign Out</span>
                 </DropdownMenuItem>
@@ -148,15 +168,34 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
         )}
 
         {!user && (
-          <Button
-            onClick={() => (window.location.href = "/api/login")}
-            className="h-9 px-5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
-            data-testid="button-login"
-          >
-            Sign In
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                setAuthTab("login");
+                setAuthOpen(true);
+              }}
+              variant="outline"
+              className="h-9 px-3 sm:px-4 border-white/20 bg-transparent hover:bg-white/5 text-white font-bold"
+              data-testid="button-login"
+            >
+              <LogIn className="w-4 h-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Login</span>
+            </Button>
+            <Button
+              onClick={() => {
+                setAuthTab("register");
+                setAuthOpen(true);
+              }}
+              className="h-9 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+              data-testid="button-register"
+            >
+              <UserPlus className="w-4 h-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Register</span>
+            </Button>
+          </div>
         )}
       </div>
+      <AuthModal open={authOpen} onOpenChange={setAuthOpen} initialTab={authTab} />
     </header>
   );
 }

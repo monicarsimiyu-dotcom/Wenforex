@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
+import { registerLocalAuth } from "./local-auth";
 import { z } from "zod";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
@@ -36,6 +37,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   await setupAuth(app);
+  // Register local auth BEFORE replit auth routes so our /api/auth/user wins
+  registerLocalAuth(app);
   registerAuthRoutes(app);
 
   // Ensure wallets exist for any authed user
