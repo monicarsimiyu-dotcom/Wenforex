@@ -96,7 +96,7 @@ export default function Dashboard() {
 
       <main className="grid grid-cols-12 gap-px bg-border/40">
         {/* ==== Chart center ==== */}
-        <section className="col-span-12 lg:col-span-9 flex flex-col bg-background/60 min-h-[85vh]">
+        <section className="col-span-12 lg:col-span-9 flex flex-col bg-background/60 min-h-[72vh]">
           {/* Market tabs */}
           <div
             className="h-12 border-b border-border/50 flex items-center px-2 bg-card/30 gap-1 overflow-x-auto shrink-0"
@@ -261,7 +261,7 @@ export default function Dashboard() {
               className="h-14 text-base font-extrabold bg-green-600 hover:bg-green-700 text-white border-0 shadow-none rounded-md"
               data-testid="button-call"
             >
-              <TrendingUp className="w-5 h-5 mr-1" /> CALL
+              <TrendingUp className="w-5 h-5 mr-1" /> UP
             </Button>
             <Button
               onClick={() => handleTrade("sell")}
@@ -269,7 +269,7 @@ export default function Dashboard() {
               className="h-14 text-base font-extrabold bg-red-600 hover:bg-red-700 text-white border-0 shadow-none rounded-md"
               data-testid="button-put"
             >
-              <TrendingDown className="w-5 h-5 mr-1" /> PUT
+              <TrendingDown className="w-5 h-5 mr-1" /> DOWN
             </Button>
           </div>
         </aside>
