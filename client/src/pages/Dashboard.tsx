@@ -95,42 +95,39 @@ export default function Dashboard() {
       <Header onDeposit={() => setDepositOpen(true)} onWithdraw={() => setWithdrawOpen(true)} />
 
       <main className="flex-1 grid grid-cols-12 grid-rows-[auto_1fr] lg:grid-rows-1 gap-px bg-border/40">
-        {/* ==== Markets list (left) ==== */}
-        <aside className="col-span-12 lg:col-span-2 row-span-1 bg-card/40 overflow-y-auto" data-testid="market-list">
-          <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border/50">
-            Markets
-          </div>
-          {MARKETS.map((m) => {
-            const price = prices[m.code] || 0;
-            const isActive = market === m.code;
-            return (
-              <button
-                key={m.code}
-                onClick={() => setMarket(m.code)}
-                className={`w-full px-3 py-2.5 flex items-center justify-between border-b border-border/30 transition-colors ${
-                  isActive ? "bg-primary/10 border-l-2 border-l-primary" : "hover:bg-white/5"
-                }`}
-                data-testid={`market-${m.code.replace("/", "-")}`}
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className={`font-mono font-bold w-5 text-center ${m.color}`}>{m.icon}</span>
-                  <div className="text-left min-w-0">
-                    <div className="text-xs font-bold truncate">{m.code}</div>
-                    <div className="text-[10px] text-muted-foreground truncate">{m.label}</div>
-                  </div>
-                </div>
-                <div className="text-[11px] font-mono font-bold text-right">
-                  {price > 0 ? price.toFixed(price > 100 ? 2 : 4) : "—"}
-                </div>
-              </button>
-            );
-          })}
-        </aside>
-
         {/* ==== Chart center ==== */}
-        <section className="col-span-12 lg:col-span-7 flex flex-col bg-background/60 min-h-[300px]">
+        <section className="col-span-12 lg:col-span-9 flex flex-col bg-background/60 min-h-[300px]">
+          {/* Market tabs */}
+          <div
+            className="h-12 border-b border-border/50 flex items-center px-2 bg-card/30 gap-1 overflow-x-auto shrink-0"
+            data-testid="market-tabs"
+          >
+            {MARKETS.map((m) => {
+              const price = prices[m.code] || 0;
+              const isActive = market === m.code;
+              return (
+                <button
+                  key={m.code}
+                  onClick={() => setMarket(m.code)}
+                  className={`shrink-0 h-9 px-3 flex items-center gap-2 rounded-md transition-colors ${
+                    isActive
+                      ? "bg-primary/15 text-white border border-primary/40"
+                      : "hover:bg-white/5 text-muted-foreground border border-transparent"
+                  }`}
+                  data-testid={`market-${m.code.replace("/", "-")}`}
+                >
+                  <span className={`font-mono font-bold ${m.color}`}>{m.icon}</span>
+                  <span className="text-xs font-bold">{m.code}</span>
+                  <span className="text-[10px] font-mono opacity-70">
+                    {price > 0 ? price.toFixed(price > 100 ? 2 : 4) : "—"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
           {/* Asset bar */}
-          <div className="h-10 border-b border-border/50 flex items-center px-4 bg-card/30 justify-between shrink-0">
+          <div className="h-10 border-b border-border/50 flex items-center px-4 bg-card/20 justify-between shrink-0">
             <div className="flex items-center gap-3">
               <span className="font-bold text-sm" data-testid="text-current-market">{market}</span>
               <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isConnected ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
