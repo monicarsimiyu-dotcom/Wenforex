@@ -10,36 +10,36 @@
   /* Background #373737 -> 0 0% 22% */
   /* Accent #0B2040 -> 216 71% 15% */
   
-  --background: 0 0% 32%;
+  --background: 0 0% 22%;
   --foreground: 0 0% 100%;
 
-  --card: 0 0% 38%;
+  --card: 0 0% 26%;
   --card-foreground: 0 0% 100%;
 
-  --popover: 0 0% 38%;
+  --popover: 0 0% 26%;
   --popover-foreground: 0 0% 100%;
 
-  --primary: 34 100% 62%;
+  --primary: 34 100% 58%;
   --primary-foreground: 0 0% 10%;
 
-  --secondary: 216 71% 28%;
-  --secondary-foreground: 210 40% 100%;
+  --secondary: 216 71% 15%;
+  --secondary-foreground: 210 40% 98%;
 
-  --muted: 0 0% 44%;
-  --muted-foreground: 0 0% 88%;
+  --muted: 0 0% 30%;
+  --muted-foreground: 0 0% 70%;
 
-  --accent: 216 71% 28%;
-  --accent-foreground: 210 40% 100%;
+  --accent: 216 71% 15%;
+  --accent-foreground: 210 40% 98%;
 
-  --destructive: 0 90% 65%;
-  --destructive-foreground: 210 40% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 210 40% 98%;
   
-  --success: 142 75% 55%;
-  --success-foreground: 210 40% 100%;
+  --success: 142 71% 45%;
+  --success-foreground: 210 40% 98%;
 
-  --border: 0 0% 52%;
-  --input: 0 0% 44%;
-  --ring: 34 100% 62%;
+  --border: 0 0% 35%;
+  --input: 0 0% 30%;
+  --ring: 34 100% 58%;
 
   --radius: 0.5rem;
 
