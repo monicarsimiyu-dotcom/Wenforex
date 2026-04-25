@@ -5,6 +5,7 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { Header } from "@/components/Header";
 import { TradingChart } from "@/components/TradingChart";
 import { TradePoolCounter } from "@/components/TradePoolCounter";
+import { Footer } from "@/components/Footer";
 import { DepositModal, WithdrawModal } from "@/components/TransactionModals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -287,6 +288,8 @@ export default function Dashboard() {
 
       {/* Trade pool counter — appears below the trade buttons after scrolling */}
       <TradePoolCounter />
+
+      <Footer />
 
       <DepositModal open={depositOpen} onOpenChange={setDepositOpen} userEmail={user?.email || ""} />
       <WithdrawModal open={withdrawOpen} onOpenChange={setWithdrawOpen} />

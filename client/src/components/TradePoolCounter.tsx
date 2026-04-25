@@ -80,27 +80,40 @@ export function TradePoolCounter() {
         </div>
 
         {/* Main ticker card */}
-        <div className="bg-gradient-to-br from-card/80 to-background border border-white/10 rounded-2xl p-8 md:p-12 shadow-2xl shadow-black/40 mb-8">
-          <div className="flex items-center justify-between mb-3">
+        <div className="relative bg-gradient-to-br from-card/90 via-card/60 to-background border border-white/10 rounded-2xl p-6 md:p-10 shadow-2xl shadow-black/50 mb-8 overflow-hidden">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/5">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">
+              <div className="w-1 h-4 bg-primary rounded-full" />
+              <span className="text-[10px] font-bold text-white uppercase tracking-[0.2em]">
                 Total across wenforex platform
               </span>
             </div>
-            <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
-              USD
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">
+                Currency
+              </span>
+              <span className="font-mono text-[10px] font-bold text-white bg-white/5 border border-white/10 px-2 py-0.5 rounded">
+                USD
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-baseline gap-1 md:gap-2 whitespace-nowrap" data-testid="text-trade-pool-value">
-            <span className="font-mono font-light text-2xl md:text-3xl text-muted-foreground/70 leading-none">
-              $
-            </span>
-            <span className="font-mono font-black text-3xl md:text-5xl text-white tabular-nums tracking-tight leading-none">
+          {/* Ticker value — single line, professional */}
+          <div
+            className="flex items-baseline gap-1 whitespace-nowrap font-mono tabular-nums tracking-tight"
+            data-testid="text-trade-pool-value"
+            style={{ textShadow: "0 0 24px rgba(74, 222, 128, 0.18)" }}
+          >
+            <span className="font-light text-xl md:text-3xl text-green-400/80 leading-none">$</span>
+            <span className="font-bold text-3xl md:text-5xl text-white leading-none">
               {dollars.toLocaleString("en-US")}
             </span>
-            <span className="font-mono font-bold text-lg md:text-2xl text-muted-foreground/80 tabular-nums leading-none">
+            <span className="font-bold text-xl md:text-2xl text-white/60 leading-none ml-0.5">
               .{cents}
+            </span>
+            <span className="ml-2 md:ml-3 text-[10px] font-bold text-muted-foreground uppercase tracking-[0.18em] self-center">
+              USD
             </span>
           </div>
 
