@@ -129,6 +129,8 @@ export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: Tra
                   fill: color,
                   fontSize: 10,
                   fontWeight: 700,
+                  offset: 2,
+                  dx: -2,
                 }}
               />
             );
@@ -149,6 +151,8 @@ export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: Tra
                   fill: color,
                   fontSize: 10,
                   fontWeight: 700,
+                  offset: 2,
+                  dx: -2,
                 }}
               />
             );
