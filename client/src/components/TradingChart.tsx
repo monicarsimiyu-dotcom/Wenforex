@@ -73,7 +73,7 @@ export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: Tra
       </div>
 
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 10, right: 8, left: 0, bottom: 0 }}>
+        <AreaChart data={data} margin={{ top: 10, right: 4, left: -8, bottom: 0 }}>
           <defs>
             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={priceColor} stopOpacity={0.35}/>
@@ -91,11 +91,11 @@ export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: Tra
           <YAxis
             domain={domain}
             orientation="right"
-            tick={{ fill: '#888', fontSize: 11, fontFamily: 'JetBrains Mono' }}
+            tick={{ fill: '#888', fontSize: 10, fontFamily: 'JetBrains Mono' }}
             axisLine={false}
             tickLine={false}
             tickCount={6}
-            width={54}
+            width={46}
           />
           <Tooltip
             content={({ active, payload }) => {
