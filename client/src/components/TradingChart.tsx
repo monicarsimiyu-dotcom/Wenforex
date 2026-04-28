@@ -20,22 +20,23 @@ const SEED_POINTS = 60;
 const TICK_MS = 1000;
 
 // Build a believable backfill so the curve looks like it has been running
-// before the user arrived, instead of starting as a flat line.
+// before the user arrived, instead of starting as a flat line. The most
+// recent seeded point matches the live price exactly so the live feed
+// continues smoothly from there.
 function seedHistory(price: number): { time: number; price: number }[] {
   const now = Date.now();
-  const points: { time: number; price: number }[] = [];
-  // Volatility scales with price magnitude
-  const vol = Math.max(price * 0.0006, 0.0002);
+  const vol = Math.max(price * 0.001, 0.0002);
+  // Walk backwards in time starting from the live price. This keeps the
+  // newest point pinned at `price` and lets older points wander naturally.
+  const reversed: { time: number; price: number }[] = [{ time: now, price }];
   let p = price;
-  // Walk backwards from current price, then reverse to get oldest -> newest
-  for (let i = 0; i < SEED_POINTS; i++) {
+  for (let i = 1; i <= SEED_POINTS; i++) {
     const drift = (Math.random() - 0.5) * vol * price;
     p = p - drift;
-    points.push({ time: now - (SEED_POINTS - i) * TICK_MS, price: p });
+    reversed.push({ time: now - i * TICK_MS, price: p });
   }
-  // Make sure the last seeded point matches current price for a clean handoff
-  points.push({ time: now, price });
-  return points;
+  // Reverse so oldest comes first, newest (== live price) last
+  return reversed.reverse();
 }
 
 export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: TradingChartProps) {
