@@ -7,6 +7,26 @@ interface TradingChartProps {
   marketKey?: string;
 }
 
+const SEED_POINTS = 60;
+const MAX_POINTS = 110;
+const TICK_MS = 1000;
+
+// Build a believable backfill so the curve looks like it has been running
+// before the user arrived. Newest point is pinned to the live price; older
+// points wander naturally backwards in time.
+function seedHistory(price: number): { time: number; price: number }[] {
+  const now = Date.now();
+  const vol = Math.max(price * 0.001, 0.0002);
+  const reversed: { time: number; price: number }[] = [{ time: now, price }];
+  let p = price;
+  for (let i = 1; i <= SEED_POINTS; i++) {
+    const drift = (Math.random() - 0.5) * vol * price;
+    p = p - drift;
+    reversed.push({ time: now - i * TICK_MS, price: p });
+  }
+  return reversed.reverse();
+}
+
 export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
   const [data, setData] = useState<{ time: number; price: number }[]>([]);
 
@@ -15,13 +35,13 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
     setData([]);
   }, [marketKey]);
 
-  // Update chart with live price
+  // Seed the chart on first live price, then append each subsequent tick
   useEffect(() => {
     if (currentPrice > 0) {
       setData(prev => {
+        if (prev.length === 0) return seedHistory(currentPrice);
         const newData = [...prev, { time: Date.now(), price: currentPrice }];
-        // Keep last 50 points
-        if (newData.length > 50) return newData.slice(newData.length - 50);
+        if (newData.length > MAX_POINTS) return newData.slice(newData.length - MAX_POINTS);
         return newData;
       });
     }
