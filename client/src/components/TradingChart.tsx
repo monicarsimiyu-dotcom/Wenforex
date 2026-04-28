@@ -77,8 +77,8 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
         <AreaChart data={data}>
           <defs>
             <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor={priceColor} stopOpacity={0.3}/>
-              <stop offset="95%" stopColor={priceColor} stopOpacity={0}/>
+              <stop offset="0%" stopColor={priceColor} stopOpacity={0.45}/>
+              <stop offset="100%" stopColor={priceColor} stopOpacity={0.2}/>
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
