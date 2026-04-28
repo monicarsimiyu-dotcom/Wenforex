@@ -16,6 +16,27 @@ interface TradingChartProps {
 }
 
 const MAX_POINTS = 90;
+const SEED_POINTS = 60;
+const TICK_MS = 1000;
+
+// Build a believable backfill so the curve looks like it has been running
+// before the user arrived, instead of starting as a flat line.
+function seedHistory(price: number): { time: number; price: number }[] {
+  const now = Date.now();
+  const points: { time: number; price: number }[] = [];
+  // Volatility scales with price magnitude
+  const vol = Math.max(price * 0.0006, 0.0002);
+  let p = price;
+  // Walk backwards from current price, then reverse to get oldest -> newest
+  for (let i = 0; i < SEED_POINTS; i++) {
+    const drift = (Math.random() - 0.5) * vol * price;
+    p = p - drift;
+    points.push({ time: now - (SEED_POINTS - i) * TICK_MS, price: p });
+  }
+  // Make sure the last seeded point matches current price for a clean handoff
+  points.push({ time: now, price });
+  return points;
+}
 
 export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: TradingChartProps) {
   const [data, setData] = useState<{ time: number; price: number }[]>([]);
@@ -25,10 +46,14 @@ export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: Tra
     setData([]);
   }, [marketKey]);
 
-  // Update chart with live price
+  // Update chart with live price (seed on first tick so the curve appears
+  // already running instead of flat).
   useEffect(() => {
     if (currentPrice > 0) {
       setData(prev => {
+        if (prev.length === 0) {
+          return seedHistory(currentPrice);
+        }
         const newData = [...prev, { time: Date.now(), price: currentPrice }];
         if (newData.length > MAX_POINTS) return newData.slice(newData.length - MAX_POINTS);
         return newData;
