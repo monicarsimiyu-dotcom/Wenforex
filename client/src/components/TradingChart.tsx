@@ -84,8 +84,6 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
           <XAxis 
             dataKey="time" 
-            type="number"
-            domain={['dataMin', 'dataMax']}
             tick={false} 
             axisLine={false} 
           />
