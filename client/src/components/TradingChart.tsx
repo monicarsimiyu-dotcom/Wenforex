@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge } from "@/components/ui/badge";
 
@@ -16,33 +16,25 @@ interface TradingChartProps {
 }
 
 const MAX_POINTS = 90;
-// Per-market history persists across market switches and re-renders so the
-// curve keeps running instead of refreshing when the user changes tabs or
-// logs in.
-const historyByMarket: Record<string, { time: number; price: number }[]> = {};
 
 export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: TradingChartProps) {
-  const key = marketKey || "default";
-  const [data, setData] = useState<{ time: number; price: number }[]>(() => historyByMarket[key] || []);
-  const lastPriceRef = useRef<number>(0);
+  const [data, setData] = useState<{ time: number; price: number }[]>([]);
 
-  // Swap visible data when market changes — but keep each market's history intact
+  // Reset on market change
   useEffect(() => {
-    setData(historyByMarket[key] ? [...historyByMarket[key]] : []);
-    lastPriceRef.current = 0;
-  }, [key]);
+    setData([]);
+  }, [marketKey]);
 
-  // Append live price to the active market's history
+  // Update chart with live price
   useEffect(() => {
-    if (currentPrice > 0 && currentPrice !== lastPriceRef.current) {
-      lastPriceRef.current = currentPrice;
-      const prevHistory = historyByMarket[key] || [];
-      const next = [...prevHistory, { time: Date.now(), price: currentPrice }];
-      if (next.length > MAX_POINTS) next.splice(0, next.length - MAX_POINTS);
-      historyByMarket[key] = next;
-      setData(next);
+    if (currentPrice > 0) {
+      setData(prev => {
+        const newData = [...prev, { time: Date.now(), price: currentPrice }];
+        if (newData.length > MAX_POINTS) return newData.slice(newData.length - MAX_POINTS);
+        return newData;
+      });
     }
-  }, [currentPrice, key]);
+  }, [currentPrice]);
 
   const priceColor = useMemo(() => {
     if (data.length < 2) return "#FFA127";
