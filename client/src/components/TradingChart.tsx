@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge } from "@/components/ui/badge";
 
@@ -40,26 +40,43 @@ function seedHistory(price: number): { time: number; price: number }[] {
 
 export function TradingChart({ currentPrice, marketKey, activeTrades = [] }: TradingChartProps) {
   const [data, setData] = useState<{ time: number; price: number }[]>([]);
+  const priceRef = useRef(currentPrice);
+  priceRef.current = currentPrice;
 
   // Reset on market change
   useEffect(() => {
     setData([]);
   }, [marketKey]);
 
-  // Update chart with live price (seed on first tick so the curve appears
-  // already running instead of flat).
+  // Seed once we have a price
   useEffect(() => {
     if (currentPrice > 0) {
-      setData(prev => {
-        if (prev.length === 0) {
-          return seedHistory(currentPrice);
-        }
-        const newData = [...prev, { time: Date.now(), price: currentPrice }];
-        if (newData.length > MAX_POINTS) return newData.slice(newData.length - MAX_POINTS);
-        return newData;
-      });
+      setData(prev => (prev.length === 0 ? seedHistory(currentPrice) : prev));
     }
   }, [currentPrice]);
+
+  // Continuously append a point each tick, walking gently around the latest
+  // live price so the curve keeps moving instead of flattening between feed
+  // updates.
+  useEffect(() => {
+    const id = setInterval(() => {
+      const live = priceRef.current;
+      if (live <= 0) return;
+      setData(prev => {
+        if (prev.length === 0) return seedHistory(live);
+        const last = prev[prev.length - 1].price;
+        const vol = Math.max(live * 0.0004, 0.0001);
+        // Small mean-reverting walk pulled towards the live price
+        const drift = (Math.random() - 0.5) * vol * live;
+        const pulled = last + (live - last) * 0.25;
+        const next = pulled + drift;
+        const newData = [...prev, { time: Date.now(), price: next }];
+        if (newData.length > MAX_POINTS) newData.splice(0, newData.length - MAX_POINTS);
+        return newData;
+      });
+    }, TICK_MS);
+    return () => clearInterval(id);
+  }, [marketKey]);
 
   const priceColor = useMemo(() => {
     if (data.length < 2) return "#FFA127";
