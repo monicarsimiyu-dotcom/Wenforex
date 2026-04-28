@@ -155,18 +155,7 @@ export default function Dashboard() {
 
           {/* Chart */}
           <div className="flex-1 relative" data-testid="chart-area">
-            <TradingChart
-              currentPrice={currentPrice}
-              marketKey={market}
-              activeTrades={activeTrades
-                .filter((t: any) => t.market === market)
-                .map((t: any) => ({
-                  id: t.id,
-                  direction: t.direction,
-                  entryPrice: Number(t.entryPrice),
-                  entryTime: new Date(t.createdAt).getTime(),
-                }))}
-            />
+            <TradingChart currentPrice={currentPrice} marketKey={market} />
           </div>
 
           {/* History strip (compact) */}
