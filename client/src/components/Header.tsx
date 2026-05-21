@@ -40,7 +40,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
   }
 
   return (
-    <header className="h-14 border-b border-white/8 backdrop-blur-xl px-3 lg:px-5 flex items-center justify-between z-50 shrink-0" style={{ background: "hsl(222 20% 10% / 0.95)" }}>
+    <header className="h-14 backdrop-blur-xl px-3 lg:px-5 flex items-center justify-between z-50 shrink-0" style={{ background: "hsl(222 20% 10%)", borderBottom: "1px solid hsl(222 15% 18%)" }}>
       {/* Left: Brand */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2" data-testid="brand-logo">
