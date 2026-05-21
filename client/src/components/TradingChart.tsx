@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge } from "@/components/ui/badge";
 
@@ -15,24 +15,35 @@ interface TradingChartProps {
   tradeMarkers?: TradeMarker[];
 }
 
+const MAX_POINTS = 50;
+
 export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: TradingChartProps) {
+  // Store price history per market so switching markets doesn't reset the curve
+  const historyRef = useRef<Record<string, { time: number; price: number }[]>>({});
   const [data, setData] = useState<{ time: number; price: number }[]>([]);
 
-  // Reset on market change
+  // Append incoming price to the correct market's history, then update display
   useEffect(() => {
-    setData([]);
-  }, [marketKey]);
+    if (!currentPrice || !marketKey) return;
+    const key = marketKey;
 
-  // Update chart with live price
-  useEffect(() => {
-    if (currentPrice > 0) {
-      setData(prev => {
-        const newData = [...prev, { time: Date.now(), price: currentPrice }];
-        if (newData.length > 50) return newData.slice(newData.length - 50);
-        return newData;
-      });
+    if (!historyRef.current[key]) {
+      historyRef.current[key] = [];
     }
-  }, [currentPrice]);
+
+    historyRef.current[key] = [
+      ...historyRef.current[key],
+      { time: Date.now(), price: currentPrice },
+    ].slice(-MAX_POINTS);
+
+    setData([...historyRef.current[key]]);
+  }, [currentPrice, marketKey]);
+
+  // When market switches, immediately show that market's accumulated history
+  useEffect(() => {
+    if (!marketKey) return;
+    setData(historyRef.current[marketKey] ? [...historyRef.current[marketKey]] : []);
+  }, [marketKey]);
 
   const priceColor = useMemo(() => {
     if (data.length < 2) return "#FFA127";
@@ -51,7 +62,6 @@ export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: Tra
     return [min - pad, max + pad];
   }, [data, tradeMarkers]);
 
-  // Only show markers whose entry time falls within visible data window
   const visibleMarkers = useMemo(() => {
     if (data.length === 0) return [];
     const firstT = data[0].time;
@@ -103,7 +113,6 @@ export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: Tra
             }}
           />
 
-          {/* Horizontal entry-price dotted line per active trade */}
           {visibleMarkers.map(t => {
             const color = t.direction === "buy" ? "#22c55e" : "#ef4444";
             const label = t.direction === "buy" ? "▲ BUY" : "▼ SELL";
