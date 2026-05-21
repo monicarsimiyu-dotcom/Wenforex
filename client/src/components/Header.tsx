@@ -47,11 +47,9 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-primary-foreground font-black text-sm shadow-md shadow-orange-900/30">
             W
           </div>
-          {!user && (
-            <span className="text-lg font-extrabold tracking-tight text-white" data-testid="text-brand-name">
-              wen<span className="text-primary">forex</span>
-            </span>
-          )}
+          <span className="text-lg font-extrabold tracking-tight text-white" data-testid="text-brand-name">
+            wen<span className="text-primary">forex</span>
+          </span>
         </div>
       </div>
 
