@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600;700&family=Fira+Code:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -44,7 +44,7 @@
   --radius: 0.5rem;
 
   --font-sans: 'DM Sans', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'Fira Code', monospace;
 }
 
 @layer base {
@@ -52,10 +52,6 @@
     @apply bg-background text-foreground antialiased font-sans;
   }
 
-  /* Disable slashed/dotted zeros in monospace font for uniform display */
-  .font-mono, [class*="font-mono"] {
-    font-feature-settings: "zero" 0, "ss01" 0;
-  }
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-bold tracking-tight;
