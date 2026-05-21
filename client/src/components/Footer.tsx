@@ -1,7 +1,8 @@
 export function Footer() {
   return (
     <footer
-      className="w-full border-t border-border/60 bg-card/40 py-6 px-4"
+      className="w-full border-t border-white/5 py-5 px-4"
+      style={{ background: "hsl(222 20% 10%)" }}
       data-testid="footer"
     >
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
