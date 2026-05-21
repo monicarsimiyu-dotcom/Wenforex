@@ -23,41 +23,43 @@ const MARKETS = [
   { code: "GOLD",    label: "Gold",  icon: "Au", color: "text-yellow-400" },
 ];
 
+// Durations in seconds with display labels
 const DURATIONS: { value: number; label: string }[] = [
-  { value: 15,   label: "15s" },
-  { value: 30,   label: "30s" },
-  { value: 60,   label: "1m"  },
-  { value: 120,  label: "2m"  },
-  { value: 300,  label: "5m"  },
-  { value: 900,  label: "15m" },
+  { value: 15, label: "15s" },
+  { value: 30, label: "30s" },
+  { value: 60, label: "1m" },
+  { value: 120, label: "2m" },
+  { value: 300, label: "5m" },
+  { value: 900, label: "15m" },
   { value: 1800, label: "30m" },
 ];
 const PROFIT_PCT = 82;
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
-  const { prices } = useWebSocket();
+  const { prices, isConnected } = useWebSocket();
   const { data: trades } = useTrades();
   const { mutate: createTrade, isPending: isTrading } = useCreateTrade();
   const { toast } = useToast();
 
-  const [market, setMarket]   = useState("BTC/USD");
-  const [amount, setAmount]   = useState(100);
+  const [market, setMarket] = useState("BTC/USD");
+  const [amount, setAmount] = useState(100);
   const [duration, setDuration] = useState(60);
-  const [depositOpen, setDepositOpen]   = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
 
-  const currentPrice    = prices[market] || 0;
+  const currentPrice = prices[market] || 0;
   const potentialProfit = (amount * (PROFIT_PCT / 100)).toFixed(2);
 
+  // Show toast on Paystack callback return
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get("paystack")) {
       const reference = url.searchParams.get("reference");
       if (reference) {
         fetch(`/api/paystack/verify?reference=${reference}`)
-          .then(r => r.json())
-          .then(d => {
+          .then((r) => r.json())
+          .then((d) => {
             if (d.status === "success") {
               toast({ title: "Deposit successful", description: "Your live wallet has been credited." });
             } else {
@@ -72,7 +74,10 @@ export default function Dashboard() {
   }, [toast]);
 
   const handleTrade = (direction: "buy" | "sell") => {
-    if (!user) { window.location.href = "/api/login"; return; }
+    if (!user) {
+      window.location.href = "/api/login";
+      return;
+    }
     if (!currentPrice) {
       toast({ title: "Wait for market data", description: "Connecting to live feed...", variant: "destructive" });
       return;
@@ -82,7 +87,7 @@ export default function Dashboard() {
       {
         onSuccess: () => {
           toast({
-            title: `${direction === "buy" ? "BUY ↑" : "SELL ↓"} placed`,
+            title: `${direction === "buy" ? "CALL ↑" : "PUT ↓"} placed`,
             description: `KSh ${amount} on ${market} for ${duration < 60 ? `${duration}s` : `${duration / 60}m`}`,
           });
         },
@@ -100,34 +105,31 @@ export default function Dashboard() {
     <div className="min-h-screen w-full flex flex-col bg-background text-foreground">
       <Header onDeposit={() => setDepositOpen(true)} onWithdraw={() => setWithdrawOpen(true)} />
 
-      <main className="grid grid-cols-12 gap-px bg-black/30">
-
-        {/* ── Chart area ── */}
-        <section className="col-span-12 lg:col-span-9 flex flex-col min-h-[72vh]" style={{ background: "hsl(222 20% 11%)" }}>
-
+      <main className="grid grid-cols-12 gap-px bg-border/40">
+        {/* ==== Chart center ==== */}
+        <section className="col-span-12 lg:col-span-9 flex flex-col bg-background/60 min-h-[72vh]">
           {/* Market tabs */}
           <div
-            className="h-12 border-b border-white/5 flex items-center px-2 gap-1 overflow-x-auto shrink-0"
-            style={{ background: "hsl(222 18% 14%)" }}
+            className="h-12 border-b border-border/50 flex items-center px-2 bg-card/30 gap-1 overflow-x-auto shrink-0"
             data-testid="market-tabs"
           >
-            {MARKETS.map(m => {
-              const price    = prices[m.code] || 0;
+            {MARKETS.map((m) => {
+              const price = prices[m.code] || 0;
               const isActive = market === m.code;
               return (
                 <button
                   key={m.code}
                   onClick={() => setMarket(m.code)}
-                  className={`shrink-0 h-8 px-3 flex items-center gap-2 rounded-md text-xs font-semibold transition-all duration-150 ${
+                  className={`shrink-0 h-9 px-3 flex items-center gap-2 rounded-md transition-colors ${
                     isActive
-                      ? "bg-primary/20 text-white border border-primary/50 shadow-sm shadow-primary/10"
-                      : "text-muted-foreground border border-transparent hover:bg-white/5 hover:text-white"
+                      ? "bg-primary/15 text-white border border-primary/40"
+                      : "hover:bg-white/5 text-muted-foreground border border-transparent"
                   }`}
                   data-testid={`market-${m.code.replace("/", "-")}`}
                 >
-                  <span className={`font-mono font-bold text-[13px] ${m.color}`}>{m.icon}</span>
-                  <span className="font-bold tracking-wide">{m.code}</span>
-                  <span className={`font-mono text-[10px] ${isActive ? "text-white/70" : "text-muted-foreground/70"}`}>
+                  <span className={`font-mono font-bold ${m.color}`}>{m.icon}</span>
+                  <span className="text-xs font-bold">{m.code}</span>
+                  <span className="text-[10px] font-mono opacity-70">
                     {price > 0 ? price.toFixed(price > 100 ? 2 : 4) : "—"}
                   </span>
                 </button>
@@ -136,26 +138,18 @@ export default function Dashboard() {
           </div>
 
           {/* Asset bar */}
-          <div
-            className="h-9 border-b border-white/5 flex items-center px-4 justify-between shrink-0"
-            style={{ background: "hsl(222 18% 13%)" }}
-          >
+          <div className="h-10 border-b border-border/50 flex items-center px-4 bg-card/20 justify-between shrink-0">
             <div className="flex items-center gap-3">
-              <span className="font-bold text-sm tracking-wide" data-testid="text-current-market">{market}</span>
-              <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold tracking-wide ${
-                currentPrice > 0
-                  ? "bg-green-500/15 text-green-400 border border-green-500/25"
-                  : "bg-yellow-500/15 text-yellow-400 border border-yellow-500/25"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${currentPrice > 0 ? "bg-green-400" : "bg-yellow-400"} animate-pulse`} />
-                {currentPrice > 0 ? "LIVE" : "Connecting"}
+              <span className="font-bold text-sm" data-testid="text-current-market">{market}</span>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${currentPrice > 0 ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                {currentPrice > 0 ? "● LIVE" : "● Connecting..."}
               </span>
               <span className="text-[10px] text-muted-foreground">
                 Payout <span className="text-green-400 font-bold">+{PROFIT_PCT}%</span>
               </span>
             </div>
-            <div className="font-mono font-bold text-sm text-primary tabular-nums" data-testid="text-current-price">
-              {currentPrice > 0 ? currentPrice.toFixed(currentPrice > 100 ? 2 : 4) : "—"}
+            <div className="font-mono font-bold text-sm text-primary" data-testid="text-current-price">
+              {currentPrice > 0 ? currentPrice.toFixed(currentPrice > 100 ? 2 : 4) : "..."}
             </div>
           </div>
 
@@ -175,14 +169,14 @@ export default function Dashboard() {
             />
           </div>
 
-          {/* Trade history strip */}
-          <div className="h-20 border-t border-white/5 shrink-0 overflow-hidden" style={{ background: "hsl(222 18% 14%)" }}>
+          {/* History strip (compact) */}
+          <div className="h-20 border-t border-border/50 bg-card/20 shrink-0 overflow-hidden">
             <Tabs defaultValue="active" className="h-full flex flex-col">
-              <TabsList className="bg-transparent h-7 px-3 justify-start gap-2 rounded-none shrink-0 border-b border-white/5">
-                <TabsTrigger value="active" className="h-5 text-[10px] px-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary rounded-sm" data-testid="tab-active-trades">
+              <TabsList className="bg-transparent h-7 px-2 justify-start gap-1 rounded-none shrink-0">
+                <TabsTrigger value="active" className="h-6 text-[10px] px-2" data-testid="tab-active-trades">
                   Open ({activeTrades.length})
                 </TabsTrigger>
-                <TabsTrigger value="history" className="h-5 text-[10px] px-2 data-[state=active]:bg-primary/15 data-[state=active]:text-primary rounded-sm" data-testid="tab-history">
+                <TabsTrigger value="history" className="h-6 text-[10px] px-2" data-testid="tab-history">
                   History
                 </TabsTrigger>
               </TabsList>
@@ -196,79 +190,68 @@ export default function Dashboard() {
           </div>
         </section>
 
-        {/* ── Trade panel ── */}
-        <aside
-          className="col-span-12 lg:col-span-3 flex flex-col p-4 gap-4 border-l border-white/5"
-          style={{ background: "hsl(222 18% 14%)" }}
-          data-testid="trade-panel"
-        >
+        {/* ==== Trade panel (right) ==== */}
+        <aside className="col-span-12 lg:col-span-3 bg-card/40 flex flex-col p-3 gap-3" data-testid="trade-panel">
           {/* Amount */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               Amount (KES)
             </label>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 mt-1">
               <Button
                 size="icon"
                 variant="outline"
-                className="h-10 w-10 shrink-0 border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                className="h-10 w-10 shrink-0 bg-background/50"
                 onClick={() => setAmount(Math.max(10, amount - 100))}
                 data-testid="button-amount-decrease"
               >
-                <Minus className="w-3.5 h-3.5" />
+                <Minus className="w-4 h-4" />
               </Button>
               <Input
                 type="number"
                 value={amount}
-                onChange={e => setAmount(Math.max(10, Number(e.target.value) || 0))}
-                className="text-center font-mono font-bold text-base border-white/10 bg-white/5 h-10 focus:border-primary/50 focus:ring-0"
+                onChange={(e) => setAmount(Math.max(10, Number(e.target.value) || 0))}
+                className="text-center font-mono font-bold text-base bg-background/50 border-white/10 h-10"
                 data-testid="input-amount"
               />
               <Button
                 size="icon"
                 variant="outline"
-                className="h-10 w-10 shrink-0 border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20"
+                className="h-10 w-10 shrink-0 bg-background/50"
                 onClick={() => setAmount(amount + 100)}
                 data-testid="button-amount-increase"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
               </Button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[100, 500, 1000, 5000].map(v => (
+            <div className="flex flex-wrap gap-1 mt-2">
+              {[100, 500, 1000, 5000].map((v) => (
                 <button
                   key={v}
                   onClick={() => setAmount(v)}
-                  className={`text-[10px] px-2.5 py-1 rounded-md font-bold transition-all ${
-                    amount === v
-                      ? "bg-primary/20 border border-primary/50 text-primary"
-                      : "border border-white/10 text-muted-foreground hover:border-white/25 hover:text-white"
-                  }`}
+                  className="text-[10px] px-2 py-1 rounded border border-white/10 hover:border-primary hover:text-primary text-muted-foreground font-bold"
                   data-testid={`button-quick-amount-${v}`}
                 >
-                  {v.toLocaleString()}
+                  {v}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="h-px bg-white/5" />
-
           {/* Duration */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground flex items-center gap-1.5">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" /> Duration
             </label>
-            <div className="grid grid-cols-4 gap-1">
-              {DURATIONS.map(d => (
+            <div className="grid grid-cols-4 gap-1 mt-1">
+              {DURATIONS.map((d) => (
                 <button
                   key={d.value}
                   onClick={() => setDuration(d.value)}
-                  className={`h-8 rounded-md font-bold text-xs transition-all ${
+                  className={`h-9 rounded font-bold text-xs transition-all ${
                     duration === d.value
-                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
-                      : "bg-white/5 border border-white/8 text-muted-foreground hover:bg-white/10 hover:text-white hover:border-white/20"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background/50 border border-white/10 text-muted-foreground hover:text-white"
                   }`}
                   data-testid={`button-duration-${d.value}`}
                 >
@@ -278,60 +261,45 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Divider */}
-          <div className="h-px bg-white/5" />
-
           {/* Profit preview */}
-          <div
-            className="rounded-xl p-3.5 flex items-center justify-between"
-            style={{
-              background: "linear-gradient(135deg, hsl(142 60% 10% / 0.8), hsl(222 20% 14%))",
-              border: "1px solid hsl(142 60% 25% / 0.25)",
-            }}
-          >
+          <div className="bg-background/50 border border-white/5 rounded-lg p-3 flex items-center justify-between">
             <div>
-              <div className="text-[9px] uppercase font-bold tracking-[0.18em] text-muted-foreground mb-0.5">Potential Profit</div>
-              <div className="font-mono font-bold text-green-400 text-xl leading-tight" data-testid="text-potential-profit">
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">Potential Profit</div>
+              <div className="font-mono font-bold text-green-400 text-lg" data-testid="text-potential-profit">
                 +KSh {potentialProfit}
               </div>
             </div>
             <div className="text-right">
-              <div className="text-[9px] uppercase font-bold tracking-[0.18em] text-muted-foreground mb-0.5">Payout</div>
-              <div className="font-mono font-bold text-primary text-xl leading-tight">+{PROFIT_PCT}%</div>
+              <div className="text-[10px] uppercase font-bold text-muted-foreground">Payout</div>
+              <div className="font-mono font-bold text-primary">+{PROFIT_PCT}%</div>
             </div>
           </div>
 
-          {/* BUY / SELL */}
-          <div className="grid grid-cols-2 gap-2 mt-auto">
+          {/* Trade buttons */}
+          <div className="grid grid-cols-2 gap-2 mt-auto pt-2">
             <Button
               onClick={() => handleTrade("buy")}
               disabled={isTrading || authLoading}
-              className="h-14 text-base font-extrabold text-white border-0 rounded-xl transition-all"
-              style={{
-                background: "linear-gradient(160deg, #22c55e, #16a34a)",
-                boxShadow: "0 4px 20px hsl(142 70% 35% / 0.35)",
-              }}
+              className="h-14 text-base font-extrabold bg-green-500 hover:bg-green-600 text-white border-0 shadow-none rounded-md"
               data-testid="button-call"
             >
-              <TrendingUp className="w-5 h-5 mr-1.5" /> BUY
+              <TrendingUp className="w-5 h-5 mr-1" /> BUY
             </Button>
             <Button
               onClick={() => handleTrade("sell")}
               disabled={isTrading || authLoading}
-              className="h-14 text-base font-extrabold text-white border-0 rounded-xl transition-all"
-              style={{
-                background: "linear-gradient(160deg, #ef4444, #dc2626)",
-                boxShadow: "0 4px 20px hsl(0 84% 50% / 0.35)",
-              }}
+              className="h-14 text-base font-extrabold bg-red-600 hover:bg-red-700 text-white border-0 shadow-none rounded-md"
               data-testid="button-put"
             >
-              <TrendingDown className="w-5 h-5 mr-1.5" /> SELL
+              <TrendingDown className="w-5 h-5 mr-1" /> SELL
             </Button>
           </div>
         </aside>
       </main>
 
+      {/* Trade pool counter — appears below the trade buttons after scrolling */}
       <TradePoolCounter />
+
       <Footer />
 
       <DepositModal open={depositOpen} onOpenChange={setDepositOpen} userEmail={user?.email || ""} />
@@ -343,29 +311,29 @@ export default function Dashboard() {
 function TradeRows({ trades }: { trades: any[] }) {
   if (trades.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-3">
-        <Activity className="w-5 h-5 mb-1 opacity-20" />
-        <p className="text-[10px]">No trades yet</p>
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-4">
+        <Activity className="w-6 h-6 mb-1 opacity-30" />
+        <p className="text-xs">No trades</p>
       </div>
     );
   }
   return (
-    <div className="divide-y divide-white/5 text-xs">
-      {trades.map(trade => (
+    <div className="divide-y divide-border/30 text-xs">
+      {trades.map((trade) => (
         <div
           key={trade.id}
-          className="px-3 py-1.5 grid grid-cols-12 items-center gap-2 hover:bg-white/3 transition-colors"
+          className="px-3 py-1.5 grid grid-cols-12 items-center gap-2 hover:bg-white/5"
           data-testid={`trade-row-${trade.id}`}
         >
           <div className={`col-span-1 ${trade.direction === "buy" ? "text-green-400" : "text-red-400"}`}>
-            {trade.direction === "buy" ? <TrendingUp size={13} /> : <TrendingDown size={13} />}
+            {trade.direction === "buy" ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
           </div>
-          <div className="col-span-3 font-semibold truncate text-white/90">{trade.market}</div>
+          <div className="col-span-3 font-bold truncate">{trade.market}</div>
           <div className="col-span-2 font-mono text-muted-foreground">{format(new Date(trade.createdAt), "HH:mm")}</div>
-          <div className="col-span-3 font-mono text-right text-white/70">KSh {Number(trade.amount).toFixed(0)}</div>
+          <div className="col-span-3 font-mono text-right">KSh {Number(trade.amount).toFixed(0)}</div>
           <div className="col-span-3 text-right font-mono font-bold">
             {trade.status === "active" ? (
-              <span className="text-primary animate-pulse">Live</span>
+              <span className="text-primary animate-pulse">Running</span>
             ) : trade.status === "won" ? (
               <span className="text-green-400">+{Number(trade.payout).toFixed(0)}</span>
             ) : (

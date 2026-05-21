@@ -40,7 +40,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
   }
 
   return (
-    <header className="h-14 backdrop-blur-xl px-3 lg:px-5 flex items-center justify-between z-50 shrink-0" style={{ background: "hsl(222 20% 10%)", borderBottom: "1px solid hsl(222 15% 18%)" }}>
+    <header className="h-14 border-b border-border bg-card/60 backdrop-blur-md px-3 lg:px-5 flex items-center justify-between z-50 shrink-0">
       {/* Left: Brand */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2" data-testid="brand-logo">
@@ -59,7 +59,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
           <>
             {/* Account type toggle */}
             <div
-              className="hidden sm:flex items-center bg-white/5 border border-white/10 rounded-lg p-0.5 text-xs font-bold"
+              className="hidden sm:flex items-center bg-background/60 border border-white/10 rounded-lg p-0.5 text-xs font-bold"
               data-testid="account-toggle"
             >
               <button
@@ -86,7 +86,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
 
             {/* Balance */}
             <div
-              className="flex items-center bg-white/5 border border-white/10 rounded-lg pl-2 pr-1 py-0.5 gap-1.5"
+              className="flex items-center bg-background/60 border border-white/10 rounded-lg pl-2 pr-1 py-0.5 gap-1.5"
               data-testid="wallet-balance"
             >
               <div className="flex flex-col items-end leading-tight">
