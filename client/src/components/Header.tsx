@@ -47,7 +47,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-primary-foreground font-black text-sm shadow-md shadow-orange-900/30">
             W
           </div>
-          <span className="text-lg font-extrabold tracking-tight text-white" data-testid="text-brand-name">
+          <span className="text-sm font-extrabold tracking-tight text-white" data-testid="text-brand-name">
             wen<span className="text-primary">forex</span>
           </span>
         </div>
@@ -86,7 +86,7 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
 
             {/* Balance */}
             <div
-              className="flex items-center bg-background/60 border border-white/10 rounded-lg pl-2 pr-1 py-0.5 gap-1.5"
+              className="flex items-center bg-background/60 border border-white/10 rounded-lg pl-2 pr-1 py-0.5 gap-0.5"
               data-testid="wallet-balance"
             >
               <div className="flex flex-col items-end leading-tight">
