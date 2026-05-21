@@ -45,7 +45,7 @@ export function DepositModal({ open, onOpenChange, userEmail }: DepositModalProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-modal sm:max-w-md" data-testid="modal-deposit">
+      <DialogContent className="glass-modal sm:max-w-sm" data-testid="modal-deposit">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-primary">Deposit Funds</DialogTitle>
           <DialogDescription>

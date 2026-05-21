@@ -141,8 +141,8 @@ export default function Dashboard() {
           <div className="h-10 border-b border-border/50 flex items-center px-4 bg-card/20 justify-between shrink-0">
             <div className="flex items-center gap-3">
               <span className="font-bold text-sm" data-testid="text-current-market">{market}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isConnected ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-                {isConnected ? "● LIVE" : "OFFLINE"}
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${currentPrice > 0 ? "bg-green-500/20 text-green-400" : "bg-yellow-500/20 text-yellow-400"}`}>
+                {currentPrice > 0 ? "● LIVE" : "● Connecting..."}
               </span>
               <span className="text-[10px] text-muted-foreground">
                 Payout <span className="text-green-400 font-bold">+{PROFIT_PCT}%</span>
