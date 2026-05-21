@@ -82,11 +82,11 @@ export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: Tra
           <YAxis
             domain={domain}
             orientation="right"
-            tick={{ fill: '#666', fontSize: 12, fontFamily: 'JetBrains Mono' }}
+            tick={{ fill: '#666', fontSize: 10, fontFamily: 'JetBrains Mono' }}
             axisLine={false}
             tickLine={false}
             tickCount={6}
-            width={60}
+            width={50}
           />
           <Tooltip
             content={({ active, payload }) => {
