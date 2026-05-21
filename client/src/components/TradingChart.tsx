@@ -1,13 +1,21 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge } from "@/components/ui/badge";
+
+interface TradeMarker {
+  id: string;
+  direction: "buy" | "sell";
+  entryPrice: number;
+  entryTime: number;
+}
 
 interface TradingChartProps {
   currentPrice: number;
   marketKey?: string;
+  tradeMarkers?: TradeMarker[];
 }
 
-export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
+export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: TradingChartProps) {
   const [data, setData] = useState<{ time: number; price: number }[]>([]);
 
   // Reset on market change
@@ -20,7 +28,6 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
     if (currentPrice > 0) {
       setData(prev => {
         const newData = [...prev, { time: Date.now(), price: currentPrice }];
-        // Keep last 50 points
         if (newData.length > 50) return newData.slice(newData.length - 50);
         return newData;
       });
@@ -37,10 +44,19 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
   const domain = useMemo(() => {
     if (data.length === 0) return [0, 100];
     const prices = data.map(d => d.price);
+    tradeMarkers.forEach(t => prices.push(t.entryPrice));
     const min = Math.min(...prices);
     const max = Math.max(...prices);
-    return [min - (max - min) * 0.1, max + (max - min) * 0.1];
-  }, [data]);
+    const pad = (max - min) * 0.1 || max * 0.001;
+    return [min - pad, max + pad];
+  }, [data, tradeMarkers]);
+
+  // Only show markers whose entry time falls within visible data window
+  const visibleMarkers = useMemo(() => {
+    if (data.length === 0) return [];
+    const firstT = data[0].time;
+    return tradeMarkers.filter(t => t.entryTime >= firstT);
+  }, [tradeMarkers, data]);
 
   return (
     <div className="w-full h-full relative group">
@@ -62,21 +78,17 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-          <XAxis 
-            dataKey="time" 
-            tick={false} 
-            axisLine={false} 
-          />
-          <YAxis 
-            domain={domain} 
-            orientation="right" 
+          <XAxis dataKey="time" tick={false} axisLine={false} />
+          <YAxis
+            domain={domain}
+            orientation="right"
             tick={{ fill: '#666', fontSize: 12, fontFamily: 'JetBrains Mono' }}
             axisLine={false}
             tickLine={false}
             tickCount={6}
             width={60}
           />
-          <Tooltip 
+          <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 return (
@@ -90,13 +102,30 @@ export function TradingChart({ currentPrice, marketKey }: TradingChartProps) {
               return null;
             }}
           />
-          <Area 
-            type="monotone" 
-            dataKey="price" 
-            stroke={priceColor} 
+
+          {/* Horizontal entry-price dotted line per active trade */}
+          {visibleMarkers.map(t => {
+            const color = t.direction === "buy" ? "#22c55e" : "#ef4444";
+            const label = t.direction === "buy" ? "▲ BUY" : "▼ SELL";
+            return (
+              <ReferenceLine
+                key={`h-${t.id}`}
+                y={t.entryPrice}
+                stroke={color}
+                strokeDasharray="5 3"
+                strokeWidth={1.5}
+                label={{ value: `${label} @ ${t.entryPrice.toFixed(2)}`, position: "insideRight", fill: color, fontSize: 10, fontWeight: 700, dx: -4 }}
+              />
+            );
+          })}
+
+          <Area
+            type="monotone"
+            dataKey="price"
+            stroke={priceColor}
             strokeWidth={3}
-            fillOpacity={1} 
-            fill="url(#colorPrice)" 
+            fillOpacity={1}
+            fill="url(#colorPrice)"
             isAnimationActive={false}
           />
         </AreaChart>

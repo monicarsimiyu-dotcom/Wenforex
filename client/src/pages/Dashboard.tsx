@@ -155,7 +155,18 @@ export default function Dashboard() {
 
           {/* Chart */}
           <div className="flex-1 relative" data-testid="chart-area">
-            <TradingChart currentPrice={currentPrice} marketKey={market} />
+            <TradingChart
+              currentPrice={currentPrice}
+              marketKey={market}
+              tradeMarkers={activeTrades
+                .filter((t: any) => t.market === market)
+                .map((t: any) => ({
+                  id: t.id,
+                  direction: t.direction as "buy" | "sell",
+                  entryPrice: Number(t.entryPrice),
+                  entryTime: new Date(t.createdAt).getTime(),
+                }))}
+            />
           </div>
 
           {/* History strip (compact) */}
@@ -272,7 +283,7 @@ export default function Dashboard() {
               className="h-14 text-base font-extrabold bg-green-500 hover:bg-green-600 text-white border-0 shadow-none rounded-md"
               data-testid="button-call"
             >
-              <TrendingUp className="w-5 h-5 mr-1" /> UP
+              <TrendingUp className="w-5 h-5 mr-1" /> BUY
             </Button>
             <Button
               onClick={() => handleTrade("sell")}
@@ -280,7 +291,7 @@ export default function Dashboard() {
               className="h-14 text-base font-extrabold bg-red-600 hover:bg-red-700 text-white border-0 shadow-none rounded-md"
               data-testid="button-put"
             >
-              <TrendingDown className="w-5 h-5 mr-1" /> DOWN
+              <TrendingDown className="w-5 h-5 mr-1" /> SELL
             </Button>
           </div>
         </aside>
