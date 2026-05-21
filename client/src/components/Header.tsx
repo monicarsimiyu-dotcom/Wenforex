@@ -86,21 +86,21 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
 
             {/* Balance */}
             <div
-              className="flex items-center bg-background/60 border border-white/10 rounded-lg pl-3 pr-1 py-1 gap-2"
+              className="flex items-center bg-background/60 border border-white/10 rounded-lg pl-2 pr-1 py-0.5 gap-1.5"
               data-testid="wallet-balance"
             >
               <div className="flex flex-col items-end leading-tight">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">
+                <span className="text-[8px] uppercase tracking-wider text-muted-foreground font-semibold">
                   {isLive ? "Live" : "Demo"}
                 </span>
-                <span className={`font-mono font-bold text-sm ${isLive ? "text-green-400" : "text-primary"}`}>
+                <span className={`font-mono font-bold text-xs ${isLive ? "text-green-400" : "text-primary"}`}>
                   KSh {wallet?.balance ? Number(wallet.balance).toLocaleString("en-KE", { maximumFractionDigits: 2 }) : "0.00"}
                 </span>
               </div>
               <Button
                 size="sm"
                 onClick={onDeposit}
-                className="h-7 px-2 bg-green-600 hover:bg-green-700 text-white border-none text-xs"
+                className="h-6 px-2 bg-green-600 hover:bg-green-700 text-white border-none text-[11px]"
                 data-testid="button-deposit"
               >
                 <ArrowDownToLine className="w-3 h-3 mr-1" /> Deposit
