@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Phone, User as UserIcon, Lock, Loader2 } from "lucide-react";
+import { Phone, User as UserIcon, Loader2, Eye, EyeOff } from "lucide-react";
 
 interface AuthModalProps {
   open: boolean;
@@ -29,6 +29,7 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
   const [loginId, setLoginId] = useState("");
   const [loginPwd, setLoginPwd] = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showLoginPwd, setShowLoginPwd] = useState(false);
 
   // Register state
   const [regMode, setRegMode] = useState<"username" | "phone">("phone");
@@ -37,6 +38,8 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
   const [regPwd, setRegPwd] = useState("");
   const [regConfirmPwd, setRegConfirmPwd] = useState("");
   const [regLoading, setRegLoading] = useState(false);
+  const [showRegPwd, setShowRegPwd] = useState(false);
+  const [showRegConfirmPwd, setShowRegConfirmPwd] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -133,14 +136,25 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
               </div>
               <div>
                 <Label htmlFor="login-pwd" className="text-xs">Password</Label>
-                <Input
-                  id="login-pwd"
-                  type="password"
-                  value={loginPwd}
-                  onChange={(e) => setLoginPwd(e.target.value)}
-                  required
-                  data-testid="input-login-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="login-pwd"
+                    type={showLoginPwd ? "text" : "password"}
+                    value={loginPwd}
+                    onChange={(e) => setLoginPwd(e.target.value)}
+                    required
+                    className="pr-10"
+                    data-testid="input-login-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPwd(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                    data-testid="toggle-login-password"
+                  >
+                    {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
               <Button
                 type="submit"
@@ -209,29 +223,51 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
 
               <div>
                 <Label htmlFor="reg-pwd" className="text-xs">Password (min 6 chars)</Label>
-                <Input
-                  id="reg-pwd"
-                  type="password"
-                  value={regPwd}
-                  onChange={(e) => setRegPwd(e.target.value)}
-                  required
-                  minLength={6}
-                  data-testid="input-reg-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="reg-pwd"
+                    type={showRegPwd ? "text" : "password"}
+                    value={regPwd}
+                    onChange={(e) => setRegPwd(e.target.value)}
+                    required
+                    minLength={6}
+                    className="pr-10"
+                    data-testid="input-reg-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPwd(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                    data-testid="toggle-reg-password"
+                  >
+                    {showRegPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <Label htmlFor="reg-confirm-pwd" className="text-xs">Confirm Password</Label>
-                <Input
-                  id="reg-confirm-pwd"
-                  type="password"
-                  value={regConfirmPwd}
-                  onChange={(e) => setRegConfirmPwd(e.target.value)}
-                  required
-                  minLength={6}
-                  placeholder="Re-enter your password"
-                  data-testid="input-reg-confirm-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="reg-confirm-pwd"
+                    type={showRegConfirmPwd ? "text" : "password"}
+                    value={regConfirmPwd}
+                    onChange={(e) => setRegConfirmPwd(e.target.value)}
+                    required
+                    minLength={6}
+                    placeholder="Re-enter your password"
+                    className="pr-10"
+                    data-testid="input-reg-confirm-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegConfirmPwd(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+                    data-testid="toggle-reg-confirm-password"
+                  >
+                    {showRegConfirmPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <Button
