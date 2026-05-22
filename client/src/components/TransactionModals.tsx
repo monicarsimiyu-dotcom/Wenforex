@@ -1,20 +1,22 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useDeposit, useWithdraw } from "@/hooks/use-wallet";
+import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Building2 } from "lucide-react";
+import { Smartphone, Building2, Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
-// --- Deposit Modal ---
+// ── Deposit Modal ──────────────────────────────────────────────────────────
 
-const depositSchema = z.object({
-  amount: z.coerce.number().min(100, "Minimum deposit is KSh 100"),
-  email: z.string().email("Invalid email address"),
+const confirmSchema = z.object({
+  transactionId: z.string().min(6, "Enter a valid M-PESA transaction ID"),
+  amount: z.coerce.number().min(100, "Minimum KSh 100"),
 });
 
 interface DepositModalProps {
@@ -23,24 +25,42 @@ interface DepositModalProps {
   userEmail?: string;
 }
 
-export function DepositModal({ open, onOpenChange, userEmail }: DepositModalProps) {
-  const { toast } = useToast();
-  const { mutate: deposit, isPending } = useDeposit();
+const TILL_NUMBER = "5387520";
 
-  const form = useForm<z.infer<typeof depositSchema>>({
-    resolver: zodResolver(depositSchema),
-    defaultValues: { amount: 1000, email: userEmail || "" },
+export function DepositModal({ open, onOpenChange }: DepositModalProps) {
+  const { toast } = useToast();
+  const [amount, setAmount] = useState(1000);
+  const [copied, setCopied] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const confirmForm = useForm<z.infer<typeof confirmSchema>>({
+    resolver: zodResolver(confirmSchema),
+    defaultValues: { transactionId: "", amount },
   });
 
-  const onSubmit = (data: z.infer<typeof depositSchema>) => {
-    deposit(data, {
-      onSuccess: (res) => {
-        window.location.href = res.authorization_url;
-      },
-      onError: (err: any) => {
-        toast({ title: "Deposit Failed", description: err.message, variant: "destructive" });
-      },
-    });
+  const copyTill = () => {
+    navigator.clipboard.writeText(TILL_NUMBER);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const onConfirmSubmit = async (data: z.infer<typeof confirmSchema>) => {
+    setSubmitting(true);
+    try {
+      await apiRequest("POST", "/api/deposit/mpesa-confirm", data);
+      toast({
+        title: "Transaction ID received",
+        description: "Our team will verify and credit your account within minutes.",
+      });
+      confirmForm.reset();
+      setShowConfirm(false);
+      onOpenChange(false);
+    } catch (err: any) {
+      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -48,78 +68,146 @@ export function DepositModal({ open, onOpenChange, userEmail }: DepositModalProp
       <DialogContent className="glass-modal sm:max-w-sm" data-testid="modal-deposit">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-primary">Deposit Funds</DialogTitle>
-          <DialogDescription>
-            Top up your live trading wallet via Paystack (M-PESA, Card, Bank).
-          </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5 mt-2">
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount (KES)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      placeholder="1000"
-                      {...field}
-                      className="bg-background/50 border-white/10 focus:border-primary font-mono text-lg"
-                      data-testid="input-deposit-amount"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+
+        <div className="space-y-4 mt-1">
+          {/* Amount picker */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Amount (KES)</label>
+            <Input
+              type="number"
+              value={amount}
+              onChange={e => setAmount(Math.max(100, Number(e.target.value) || 0))}
+              className="bg-background/50 border-white/10 focus:border-primary font-mono text-lg h-11"
+              data-testid="input-deposit-amount"
             />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email Address</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="you@example.com"
-                      {...field}
-                      className="bg-background/50 border-white/10 focus:border-primary"
-                      data-testid="input-deposit-email"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-wrap gap-2">
-              {[500, 1000, 2500, 5000, 10000].map((v) => (
+            <div className="flex flex-wrap gap-1.5">
+              {[500, 1000, 2500, 5000, 10000].map(v => (
                 <button
                   key={v}
                   type="button"
-                  onClick={() => form.setValue("amount", v)}
-                  className="px-3 py-1 text-xs font-bold rounded-md border border-white/10 hover:border-primary hover:text-primary text-muted-foreground"
+                  onClick={() => setAmount(v)}
+                  className={`px-2.5 py-1 text-xs font-bold rounded-md border transition-all ${
+                    amount === v
+                      ? "border-primary text-primary bg-primary/10"
+                      : "border-white/10 text-muted-foreground hover:border-primary hover:text-primary"
+                  }`}
                   data-testid={`button-quick-${v}`}
                 >
                   KSh {v.toLocaleString()}
                 </button>
               ))}
             </div>
-            <Button
-              type="submit"
-              className="w-full h-11 text-base font-bold bg-green-600 hover:bg-green-700 text-white"
-              disabled={isPending}
-              data-testid="button-submit-deposit"
+          </div>
+
+          {/* M-PESA instructions */}
+          <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4 space-y-3">
+            <p className="text-sm font-bold text-white flex items-center gap-2">
+              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA Till
+            </p>
+            <ol className="text-sm text-muted-foreground space-y-1.5 list-none">
+              <li><span className="text-white font-semibold">1.</span> Go to M-PESA → <span className="text-white">Lipa na M-PESA</span></li>
+              <li><span className="text-white font-semibold">2.</span> Select <span className="text-white">Buy Goods & Services</span></li>
+              <li>
+                <span className="text-white font-semibold">3.</span> Enter Till No.{" "}
+                <button
+                  onClick={copyTill}
+                  className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded hover:bg-primary/20 transition-colors"
+                  data-testid="button-copy-till"
+                >
+                  {TILL_NUMBER}
+                  {copied ? <CheckCircle2 className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                </button>
+              </li>
+              <li>
+                <span className="text-white font-semibold">4.</span> Enter amount:{" "}
+                <span className="font-mono font-bold text-primary">KSh {amount.toLocaleString()}</span>
+              </li>
+            </ol>
+            <div className="flex items-center gap-2 pt-1 border-t border-green-500/20">
+              <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+              <p className="text-xs text-green-400 font-semibold">
+                Funds reflect on your account automatically after payment.
+              </p>
+            </div>
+          </div>
+
+          {/* Balance not reflecting collapsible */}
+          <div className="rounded-xl border border-white/10 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowConfirm(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+              data-testid="button-toggle-confirm"
             >
-              {isPending ? "Processing..." : "Proceed to Pay"}
-            </Button>
-          </form>
-        </Form>
+              <span>Balance not reflecting?</span>
+              {showConfirm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+
+            {showConfirm && (
+              <div className="px-4 pb-4 border-t border-white/8 bg-background/30">
+                <p className="text-xs text-muted-foreground mt-3 mb-3">
+                  Submit your M-PESA transaction ID and our team will credit your account within minutes.
+                </p>
+                <Form {...confirmForm}>
+                  <form onSubmit={confirmForm.handleSubmit(onConfirmSubmit)} className="space-y-3">
+                    <FormField
+                      control={confirmForm.control}
+                      name="transactionId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">M-PESA Transaction ID</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="e.g. QHK7X2PLMN"
+                              {...field}
+                              className="bg-background/50 border-white/10 font-mono uppercase h-9 text-sm"
+                              data-testid="input-mpesa-txn-id"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={confirmForm.control}
+                      name="amount"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Amount Sent (KES)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="1000"
+                              {...field}
+                              className="bg-background/50 border-white/10 font-mono h-9 text-sm"
+                              data-testid="input-confirm-amount"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={submitting}
+                      className="w-full h-9 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                      data-testid="button-submit-txn-id"
+                    >
+                      {submitting ? "Submitting..." : "Submit Transaction ID"}
+                    </Button>
+                  </form>
+                </Form>
+              </div>
+            )}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-// --- Withdraw Modal ---
+// ── Withdraw Modal ─────────────────────────────────────────────────────────
 
 const mpesaSchema = z.object({
   amount: z.coerce.number().min(100, "Minimum withdrawal is KSh 100"),
@@ -182,7 +270,6 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
       <DialogContent className="glass-modal sm:max-w-md" data-testid="modal-withdraw">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-primary">Withdraw Funds</DialogTitle>
-          <DialogDescription>Send your earnings to M-PESA or your bank.</DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="mpesa" className="mt-2">

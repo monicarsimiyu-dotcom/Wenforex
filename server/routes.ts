@@ -234,6 +234,31 @@ export async function registerRoutes(
     }
   });
 
+  // M-PESA manual deposit confirmation (user submits transaction ID)
+  app.post("/api/deposit/mpesa-confirm", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { transactionId, amount } = z.object({
+        transactionId: z.string().min(6, "Invalid transaction ID"),
+        amount: z.coerce.number().min(100, "Minimum KSh 100"),
+      }).parse(req.body);
+      const userId = (req.user as any).claims.sub;
+      const reference = `MPESA-${transactionId.toUpperCase()}`;
+      await storage.createTransaction({
+        userId,
+        accountType: "live",
+        type: "deposit",
+        amount: String(amount),
+        reference,
+        paymentMethod: "mpesa",
+      });
+      res.json({ message: "Received. Our team will verify and credit your account within minutes." });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(400).json({ message: "Invalid request" });
+    }
+  });
+
   // Paystack webhook / callback verification
   app.get("/api/paystack/verify", async (req, res) => {
     const reference = String(req.query.reference || "");
