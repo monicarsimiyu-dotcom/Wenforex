@@ -70,7 +70,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
           <DialogTitle className="text-xl font-bold text-primary">Deposit Funds</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 mt-1">
+        <div className="space-y-4 mt-1 max-h-[75vh] overflow-y-auto pr-1">
           {/* Amount picker */}
           <div className="space-y-2">
             <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Amount (KES)</label>
@@ -117,6 +117,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
                 >
                   {TILL_NUMBER}
                   {copied ? <CheckCircle2 className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
+                  <span className="text-xs">{copied ? "Copied!" : "Copy"}</span>
                 </button>
               </li>
               <li>
@@ -140,7 +141,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
               className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
               data-testid="button-toggle-confirm"
             >
-              <span>Balance not reflecting?</span>
+              <span className="text-red-400 font-bold">Balance not reflecting?</span>
               {showConfirm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
 
