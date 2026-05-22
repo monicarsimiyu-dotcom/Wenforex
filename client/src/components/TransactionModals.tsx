@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
 import { Smartphone, Building2, Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // ── Deposit Modal ──────────────────────────────────────────────────────────
 
@@ -58,9 +58,10 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
     setSubmitting(true);
     try {
       await apiRequest("POST", "/api/deposit/mpesa-confirm", data);
+      await queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
       toast({
-        title: "Transaction ID received",
-        description: "Our team will verify and credit your account within minutes.",
+        title: "Balance credited!",
+        description: `KSh ${data.amount.toLocaleString()} has been added to your live account.`,
       });
       confirmForm.reset();
       setShowConfirm(false);

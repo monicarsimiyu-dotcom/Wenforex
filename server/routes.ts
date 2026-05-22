@@ -252,7 +252,9 @@ export async function registerRoutes(
         reference,
         paymentMethod: "mpesa",
       });
-      res.json({ message: "Received. Our team will verify and credit your account within minutes." });
+      await storage.updateTransactionStatus(reference, "success");
+      await storage.updateBalance(userId, "live", amount);
+      res.json({ message: "Balance credited successfully!", amount });
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(400).json({ message: "Invalid request" });
