@@ -34,8 +34,8 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
   const [regMode, setRegMode] = useState<"username" | "phone">("phone");
   const [regUsername, setRegUsername] = useState("");
   const [regPhone, setRegPhone] = useState("");
-  const [regFirstName, setRegFirstName] = useState("");
   const [regPwd, setRegPwd] = useState("");
+  const [regConfirmPwd, setRegConfirmPwd] = useState("");
   const [regLoading, setRegLoading] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
@@ -64,9 +64,13 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
+    if (regPwd !== regConfirmPwd) {
+      toast({ title: "Passwords do not match", description: "Please make sure both passwords are the same.", variant: "destructive" });
+      return;
+    }
     setRegLoading(true);
     try {
-      const body: any = { password: regPwd, firstName: regFirstName };
+      const body: any = { password: regPwd };
       if (regMode === "username") body.username = regUsername;
       else body.phone = regPhone;
 
@@ -86,8 +90,8 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
       onOpenChange(false);
       setRegUsername("");
       setRegPhone("");
-      setRegFirstName("");
       setRegPwd("");
+      setRegConfirmPwd("");
     } catch (err: any) {
       toast({ title: "Registration failed", description: err.message, variant: "destructive" });
     } finally {
@@ -204,17 +208,6 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
               )}
 
               <div>
-                <Label htmlFor="reg-name" className="text-xs">First Name (optional)</Label>
-                <Input
-                  id="reg-name"
-                  value={regFirstName}
-                  onChange={(e) => setRegFirstName(e.target.value)}
-                  placeholder="John"
-                  data-testid="input-reg-name"
-                />
-              </div>
-
-              <div>
                 <Label htmlFor="reg-pwd" className="text-xs">Password (min 6 chars)</Label>
                 <Input
                   id="reg-pwd"
@@ -224,6 +217,20 @@ export function AuthModal({ open, onOpenChange, initialTab = "login" }: AuthModa
                   required
                   minLength={6}
                   data-testid="input-reg-password"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="reg-confirm-pwd" className="text-xs">Confirm Password</Label>
+                <Input
+                  id="reg-confirm-pwd"
+                  type="password"
+                  value={regConfirmPwd}
+                  onChange={(e) => setRegConfirmPwd(e.target.value)}
+                  required
+                  minLength={6}
+                  placeholder="Re-enter your password"
+                  data-testid="input-reg-confirm-password"
                 />
               </div>
 
