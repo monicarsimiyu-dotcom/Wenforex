@@ -26,10 +26,19 @@ interface DepositModalProps {
 }
 
 const TILL_NUMBER = "5387520";
+const KES_PER_USD = 130;
+
+const QUICK_PICKS = [
+  { kes: 1300, usd: 10 },
+  { kes: 2600, usd: 20 },
+  { kes: 6500, usd: 50 },
+  { kes: 13000, usd: 100 },
+  { kes: 26000, usd: 200 },
+];
 
 export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const { toast } = useToast();
-  const [amount, setAmount] = useState(1000);
+  const [amount, setAmount] = useState(1300);
   const [copied, setCopied] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -77,24 +86,24 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             <Input
               type="number"
               value={amount}
-              onChange={e => setAmount(Math.max(100, Number(e.target.value) || 0))}
+              onChange={e => setAmount(Math.max(1300, Number(e.target.value) || 0))}
               className="bg-background/50 border-white/10 focus:border-primary font-mono text-lg h-11"
               data-testid="input-deposit-amount"
             />
             <div className="flex flex-wrap gap-1.5">
-              {[500, 1000, 2500, 5000, 10000].map(v => (
+              {QUICK_PICKS.map(({ kes, usd }) => (
                 <button
-                  key={v}
+                  key={kes}
                   type="button"
-                  onClick={() => setAmount(v)}
+                  onClick={() => setAmount(kes)}
                   className={`px-2.5 py-1 text-xs font-bold rounded-md border transition-all ${
-                    amount === v
+                    amount === kes
                       ? "border-primary text-primary bg-primary/10"
                       : "border-white/10 text-muted-foreground hover:border-primary hover:text-primary"
                   }`}
-                  data-testid={`button-quick-${v}`}
+                  data-testid={`button-quick-${kes}`}
                 >
-                  KSh {v.toLocaleString()}
+                  KSh {kes.toLocaleString()} <span className="opacity-60">(${usd})</span>
                 </button>
               ))}
             </div>
@@ -211,12 +220,12 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
 // ── Withdraw Modal ─────────────────────────────────────────────────────────
 
 const mpesaSchema = z.object({
-  amount: z.coerce.number().min(100, "Minimum withdrawal is KSh 100"),
+  amount: z.coerce.number().min(1000, "Minimum withdrawal is KSh 1,000"),
   phoneNumber: z.string().regex(/^(?:\+?254|0)?7\d{8}$/, "Enter valid Kenyan number"),
 });
 
 const bankSchema = z.object({
-  amount: z.coerce.number().min(500, "Minimum bank withdrawal is KSh 500"),
+  amount: z.coerce.number().min(1000, "Minimum bank withdrawal is KSh 1,000"),
   bankCode: z.string().min(1, "Select a bank"),
   accountNumber: z.string().min(8, "Invalid account number"),
 });
@@ -232,7 +241,7 @@ export function WithdrawModal({ open, onOpenChange }: WithdrawModalProps) {
 
   const mpesaForm = useForm<z.infer<typeof mpesaSchema>>({
     resolver: zodResolver(mpesaSchema),
-    defaultValues: { amount: 500, phoneNumber: "" },
+    defaultValues: { amount: 1000, phoneNumber: "" },
   });
 
   const bankForm = useForm<z.infer<typeof bankSchema>>({
