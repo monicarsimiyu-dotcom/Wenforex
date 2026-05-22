@@ -143,15 +143,15 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
           </div>
 
           {/* Balance not reflecting collapsible */}
-          <div className="rounded-xl border border-white/10 overflow-hidden">
+          <div className="rounded-xl border border-red-500/50 overflow-hidden">
             <button
               type="button"
               onClick={() => setShowConfirm(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-muted-foreground hover:text-white hover:bg-white/5 transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 bg-red-500/15 hover:bg-red-500/25 transition-colors"
               data-testid="button-toggle-confirm"
             >
-              <span className="text-red-400 font-bold">Balance not reflecting?</span>
-              {showConfirm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              <span className="text-red-400 font-extrabold text-base tracking-wide">⚠ Balance not reflecting?</span>
+              {showConfirm ? <ChevronUp className="w-5 h-5 text-red-400" /> : <ChevronDown className="w-5 h-5 text-red-400" />}
             </button>
 
             {showConfirm && (
