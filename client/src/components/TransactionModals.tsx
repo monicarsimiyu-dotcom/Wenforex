@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Building2, Copy, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { Smartphone, Building2, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // ── Deposit Modal ──────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ interface DepositModalProps {
   userEmail?: string;
 }
 
-const TILL_NUMBER = "5387520";
+const TINYPESA_LINK = "https://tinypesa.com/epay";
 const KES_PER_USD = 130;
 
 const QUICK_PICKS = [
@@ -39,7 +39,6 @@ const QUICK_PICKS = [
 export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const { toast } = useToast();
   const [amount, setAmount] = useState(1300);
-  const [copied, setCopied] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -48,10 +47,10 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
     defaultValues: { transactionId: "", amount },
   });
 
-  const copyTill = () => {
-    navigator.clipboard.writeText(TILL_NUMBER);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const openTinyPesa = () => {
+    const ref = `WF-${Date.now()}`;
+    const url = `${TINYPESA_LINK}?amount=${amount}&account_no=${ref}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const onConfirmSubmit = async (data: z.infer<typeof confirmSchema>) => {
@@ -110,31 +109,27 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             </div>
           </div>
 
-          {/* M-PESA instructions */}
+          {/* TinyPesa M-PESA payment */}
           <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4 space-y-3">
             <p className="text-sm font-bold text-white flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA Till
+              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA
             </p>
-            <ol className="text-sm text-muted-foreground space-y-1.5 list-none">
-              <li><span className="text-white font-semibold">1.</span> Go to M-PESA → <span className="text-white">Lipa na M-PESA</span></li>
-              <li><span className="text-white font-semibold">2.</span> Select <span className="text-white">Buy Goods & Services</span></li>
-              <li>
-                <span className="text-white font-semibold">3.</span> Enter Till No.{" "}
-                <button
-                  onClick={copyTill}
-                  className="inline-flex items-center gap-1 font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded hover:bg-primary/20 transition-colors"
-                  data-testid="button-copy-till"
-                >
-                  {TILL_NUMBER}
-                  {copied ? <CheckCircle2 className="w-3 h-3 text-green-400" /> : <Copy className="w-3 h-3" />}
-                  <span className="text-xs">{copied ? "Copied!" : "Copy"}</span>
-                </button>
-              </li>
-              <li>
-                <span className="text-white font-semibold">4.</span> Enter amount:{" "}
-                <span className="font-mono font-bold text-primary">KSh {amount.toLocaleString()}</span>
-              </li>
-            </ol>
+            <p className="text-xs text-muted-foreground">
+              Click the button below — you'll be taken to our secure M-PESA payment page where you'll receive an STK push prompt on your phone.
+            </p>
+            <div className="flex items-center justify-between bg-background/40 rounded-lg px-3 py-2">
+              <span className="text-sm text-muted-foreground">Amount to pay:</span>
+              <span className="font-bold text-primary text-base">KSh {amount.toLocaleString()}</span>
+            </div>
+            <button
+              type="button"
+              onClick={openTinyPesa}
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-base transition-colors"
+              data-testid="button-pay-mpesa"
+            >
+              <Smartphone className="w-4 h-4" />
+              Pay KSh {amount.toLocaleString()} via M-PESA
+            </button>
             <div className="flex items-center gap-2 pt-1 border-t border-green-500/20">
               <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
               <p className="text-xs text-green-400 font-semibold">
