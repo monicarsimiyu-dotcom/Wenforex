@@ -10,14 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
 import { Smartphone, Building2, CheckCircle2, Loader2 } from "lucide-react";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 
 // ── Deposit Modal ──────────────────────────────────────────────────────────
-
-const confirmSchema = z.object({
-  transactionId: z.string().min(6, "Enter a valid M-PESA transaction ID"),
-  amount: z.coerce.number().min(100, "Minimum KSh 100"),
-});
 
 interface DepositModalProps {
   open: boolean;
@@ -38,12 +33,6 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const [amount, setAmount] = useState(1300);
   const [phone, setPhone] = useState("");
   const [stkState, setStkState] = useState<"idle" | "sending" | "sent">("idle");
-  const [submitting, setSubmitting] = useState(false);
-
-  const confirmForm = useForm<z.infer<typeof confirmSchema>>({
-    resolver: zodResolver(confirmSchema),
-    defaultValues: { transactionId: "", amount },
-  });
 
   const phoneValid = /^(?:\+?254|0)?7\d{8}$/.test(phone.replace(/\s+/g, ""));
 
@@ -58,31 +47,11 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
       setStkState("sent");
       toast({
         title: "STK push sent!",
-        description: "Check your phone and enter your M-PESA PIN to approve the payment.",
+        description: "Check your phone and enter your M-PESA PIN to complete the payment.",
       });
     } catch (err: any) {
       setStkState("idle");
       toast({ title: "Could not send STK push", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const onConfirmSubmit = async (data: z.infer<typeof confirmSchema>) => {
-    setSubmitting(true);
-    try {
-      await apiRequest("POST", "/api/deposit/mpesa-confirm", data);
-      await queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
-      toast({
-        title: "Balance credited!",
-        description: `KSh ${data.amount.toLocaleString()} added to your live account.`,
-      });
-      confirmForm.reset();
-      setStkState("idle");
-      setPhone("");
-      onOpenChange(false);
-    } catch (err: any) {
-      toast({ title: "Submission failed", description: err.message, variant: "destructive" });
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -101,11 +70,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             <Input
               type="number"
               value={amount}
-              onChange={e => {
-                const v = Math.max(1, Number(e.target.value) || 0);
-                setAmount(v);
-                confirmForm.setValue("amount", v);
-              }}
+              onChange={e => setAmount(Math.max(1, Number(e.target.value) || 0))}
               className="bg-background/50 border-white/10 focus:border-primary text-lg h-11"
               data-testid="input-deposit-amount"
             />
@@ -114,7 +79,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
                 <button
                   key={kes}
                   type="button"
-                  onClick={() => { setAmount(kes); confirmForm.setValue("amount", kes); }}
+                  onClick={() => setAmount(kes)}
                   className={`px-2.5 py-1 text-xs font-bold rounded-md border transition-all ${
                     amount === kes
                       ? "border-primary text-primary bg-primary/10"
@@ -128,13 +93,10 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             </div>
           </div>
 
-          {/* ── STK push ── */}
+          {/* ── Pay with M-PESA ── */}
           <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4 space-y-3">
             <p className="text-sm font-bold text-white flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA (STK Push)
-            </p>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Enter your M-PESA number and we'll send a payment prompt straight to your phone — no till numbers, no codes to dial.
+              <Smartphone className="w-4 h-4 text-green-400" /> Pay with M-PESA
             </p>
 
             <div className="space-y-2">
@@ -160,9 +122,9 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
               {stkState === "sending" ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending prompt…</>
               ) : stkState === "sent" ? (
-                <><Smartphone className="w-4 h-4 mr-2" /> Resend STK Push</>
+                <><Smartphone className="w-4 h-4 mr-2" /> Resend Prompt</>
               ) : (
-                <><Smartphone className="w-4 h-4 mr-2" /> Send STK Push — KSh {amount.toLocaleString()}</>
+                <><Smartphone className="w-4 h-4 mr-2" /> Pay KSh {amount.toLocaleString()}</>
               )}
             </Button>
 
@@ -170,66 +132,10 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
               <div className="flex items-start gap-2.5 rounded-lg bg-background/60 border border-green-500/20 px-3 py-2.5" data-testid="status-stk-sent">
                 <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Prompt sent to <span className="text-white font-semibold">{phone}</span>. Enter your M-PESA PIN to approve, then confirm below to credit your balance.
+                  Payment prompt sent to <span className="text-white font-semibold">{phone}</span>. Enter your M-PESA PIN on your phone to complete the deposit.
                 </p>
               </div>
             )}
-          </div>
-
-          {/* ── Confirm transaction ── */}
-          <div className="rounded-xl border border-white/10 bg-white/3 p-4 space-y-3">
-            <p className="text-sm font-bold text-white">Confirm your payment</p>
-            <p className="text-xs text-muted-foreground">After approving the prompt, enter the M-PESA transaction code from your confirmation SMS — your balance will be credited instantly.</p>
-
-            <Form {...confirmForm}>
-              <form onSubmit={confirmForm.handleSubmit(onConfirmSubmit)} className="space-y-3">
-                <FormField
-                  control={confirmForm.control}
-                  name="transactionId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs text-muted-foreground">M-PESA Transaction Code</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g. QHK7X2PLMN"
-                          {...field}
-                          onChange={e => field.onChange(e.target.value.toUpperCase())}
-                          className="bg-background/50 border-white/10 focus:border-primary uppercase tracking-widest h-10 text-sm"
-                          data-testid="input-mpesa-txn-id"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={confirmForm.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs text-muted-foreground">Amount Paid (KES)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          {...field}
-                          className="bg-background/50 border-white/10 focus:border-primary h-10 text-sm"
-                          data-testid="input-confirm-amount"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full h-10 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-                  data-testid="button-submit-txn-id"
-                >
-                  {submitting ? "Crediting your account..." : "Confirm & Credit My Balance"}
-                </Button>
-              </form>
-            </Form>
           </div>
 
         </div>
