@@ -21,6 +21,7 @@ interface DepositModalProps {
 }
 
 const QUICK_PICKS = [
+  { kes: 2, usd: 0.02 },
   { kes: 1300, usd: 10 },
   { kes: 2600, usd: 20 },
   { kes: 6500, usd: 50 },

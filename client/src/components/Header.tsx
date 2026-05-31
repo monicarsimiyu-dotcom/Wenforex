@@ -169,10 +169,10 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
                 setAuthOpen(true);
               }}
               variant="outline"
-              className="h-9 px-3 sm:px-4 border-white/20 bg-transparent hover:bg-white/5 text-white font-bold"
+              className="h-8 w-24 px-0 border-white/20 bg-transparent hover:bg-white/5 text-white font-bold text-sm"
               data-testid="button-login"
             >
-              <LogIn className="w-4 h-4 mr-1.5" />
+              <LogIn className="w-3.5 h-3.5 mr-1.5" />
               <span>Login</span>
             </Button>
             <Button
@@ -180,10 +180,10 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
                 setAuthTab("register");
                 setAuthOpen(true);
               }}
-              className="h-9 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+              className="h-8 w-24 px-0 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-sm"
               data-testid="button-register"
             >
-              <UserPlus className="w-4 h-4 mr-1.5" />
+              <UserPlus className="w-3.5 h-3.5 mr-1.5" />
               <span>Register</span>
             </Button>
           </div>
