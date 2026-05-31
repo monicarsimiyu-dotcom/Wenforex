@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Building2, CheckCircle2, ChevronDown, ChevronUp, Loader2, XCircle } from "lucide-react";
+import { Smartphone, Building2, CheckCircle2, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // ── Deposit Modal ──────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ interface DepositModalProps {
   userEmail?: string;
 }
 
-const KES_PER_USD = 130;
+const TINYPESA_EPAY = "https://tinypesa.com/epay/2V4F6ZoPjCT9WV8rNRu9-H-oc-tceDI722XHDOnu";
 
 const QUICK_PICKS = [
   { kes: 1300, usd: 10 },
@@ -35,96 +35,23 @@ const QUICK_PICKS = [
   { kes: 26000, usd: 200 },
 ];
 
-type StkStatus = "idle" | "sending" | "waiting" | "success" | "failed";
-
 export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const { toast } = useToast();
   const [amount, setAmount] = useState(1300);
-  const [phone, setPhone] = useState("");
-  const [stkStatus, setStkStatus] = useState<StkStatus>("idle");
-  const [stkError, setStkError] = useState("");
-  const [requestId, setRequestId] = useState("");
-  const [reference, setReference] = useState("");
+  const [paid, setPaid] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollCount = useRef(0);
 
   const confirmForm = useForm<z.infer<typeof confirmSchema>>({
     resolver: zodResolver(confirmSchema),
     defaultValues: { transactionId: "", amount },
   });
 
-  // Stop polling on unmount or when modal closes
-  useEffect(() => {
-    if (!open) {
-      stopPolling();
-      if (stkStatus !== "success") setStkStatus("idle");
-    }
-  }, [open]);
-
-  const stopPolling = () => {
-    if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = null;
-    pollCount.current = 0;
-  };
-
-  const startPolling = (reqId: string, ref: string, amt: number) => {
-    stopPolling();
-    pollCount.current = 0;
-    pollRef.current = setInterval(async () => {
-      pollCount.current += 1;
-      if (pollCount.current > 20) {
-        stopPolling();
-        setStkStatus("failed");
-        setStkError("Payment timed out. Please try again or use the transaction ID below.");
-        return;
-      }
-      try {
-        const res = await fetch(
-          `/api/deposit/tinypesa/status/${reqId}?reference=${ref}&amount=${amt}`,
-          { credentials: "include" }
-        );
-        const data = await res.json();
-        if (data.status === "success") {
-          stopPolling();
-          setStkStatus("success");
-          await queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
-          toast({ title: "Payment successful!", description: `KSh ${amt.toLocaleString()} credited to your live account.` });
-        } else if (data.status === "failed") {
-          stopPolling();
-          setStkStatus("failed");
-          setStkError(data.message || "Payment was not completed. Please try again.");
-        }
-      } catch {}
-    }, 3000);
-  };
-
-  const sendStkPush = async () => {
-    if (!phone.trim()) {
-      toast({ title: "Enter your phone number", variant: "destructive" });
-      return;
-    }
-    setStkStatus("sending");
-    setStkError("");
-    try {
-      const res = await apiRequest("POST", "/api/deposit/tinypesa/initiate", { amount, phone: phone.trim() }) as any;
-      setRequestId(res.requestId);
-      setReference(res.reference);
-      setStkStatus("waiting");
-      startPolling(res.requestId, res.reference, amount);
-    } catch (err: any) {
-      setStkStatus("failed");
-      setStkError(err.message || "Failed to send STK push. Check your phone number and try again.");
-    }
-  };
-
-  const resetStk = () => {
-    stopPolling();
-    setStkStatus("idle");
-    setStkError("");
-    setRequestId("");
-    setReference("");
+  const openPaymentPage = () => {
+    const ref = `WF-${Date.now()}`;
+    const url = `${TINYPESA_EPAY}?amount=${amount}&account_no=${ref}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    setPaid(true);
   };
 
   const onConfirmSubmit = async (data: z.infer<typeof confirmSchema>) => {
@@ -138,6 +65,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
       });
       confirmForm.reset();
       setShowConfirm(false);
+      setPaid(false);
       onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Submission failed", description: err.message, variant: "destructive" });
@@ -147,7 +75,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v) { setPaid(false); setShowConfirm(false); } onOpenChange(v); }}>
       <DialogContent className="glass-modal sm:max-w-sm" data-testid="modal-deposit">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-primary">Deposit Funds</DialogTitle>
@@ -161,9 +89,8 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             <Input
               type="number"
               value={amount}
-              onChange={e => { setAmount(Math.max(1, Number(e.target.value) || 0)); resetStk(); }}
+              onChange={e => { setAmount(Math.max(1, Number(e.target.value) || 0)); setPaid(false); }}
               className="bg-background/50 border-white/10 focus:border-primary text-lg h-11"
-              disabled={stkStatus === "waiting"}
               data-testid="input-deposit-amount"
             />
             <div className="flex flex-wrap gap-1.5">
@@ -171,8 +98,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
                 <button
                   key={kes}
                   type="button"
-                  onClick={() => { setAmount(kes); resetStk(); }}
-                  disabled={stkStatus === "waiting"}
+                  onClick={() => { setAmount(kes); setPaid(false); }}
                   className={`px-2.5 py-1 text-xs font-bold rounded-md border transition-all ${
                     amount === kes
                       ? "border-primary text-primary bg-primary/10"
@@ -186,104 +112,49 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             </div>
           </div>
 
-          {/* ── STK Push panel ── */}
+          {/* ── M-PESA payment panel ── */}
           <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4 space-y-3">
             <p className="text-sm font-bold text-white flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA STK Push
+              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA
             </p>
 
-            {/* Idle / sending — show form */}
-            {(stkStatus === "idle" || stkStatus === "sending") && (
-              <>
-                <div className="space-y-1.5">
-                  <label className="text-xs text-muted-foreground font-semibold">M-PESA Phone Number</label>
-                  <Input
-                    type="tel"
-                    placeholder="07XXXXXXXX or 254XXXXXXXXX"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="bg-background/50 border-white/10 focus:border-primary h-10"
-                    data-testid="input-stk-phone"
-                  />
-                </div>
-                <div className="flex items-center justify-between bg-background/40 rounded-lg px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">Amount:</span>
-                  <span className="font-bold text-primary">KSh {amount.toLocaleString()}</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={sendStkPush}
-                  disabled={stkStatus === "sending"}
-                  className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-bold text-sm transition-colors"
-                  data-testid="button-send-stk"
-                >
-                  {stkStatus === "sending"
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending prompt…</>
-                    : <><Smartphone className="w-4 h-4" /> Send STK Push to My Phone</>}
-                </button>
-              </>
-            )}
-
-            {/* Waiting — polling */}
-            {stkStatus === "waiting" && (
-              <div className="flex flex-col items-center gap-3 py-3 text-center">
-                <Loader2 className="w-8 h-8 text-green-400 animate-spin" />
-                <p className="text-sm font-bold text-white">Check your phone!</p>
-                <p className="text-xs text-muted-foreground">An M-PESA prompt has been sent to <span className="text-white font-semibold">{phone}</span>. Enter your M-PESA PIN to confirm payment of <span className="text-primary font-bold">KSh {amount.toLocaleString()}</span>.</p>
-                <button onClick={resetStk} className="text-xs text-muted-foreground underline hover:text-white mt-1">Cancel</button>
+            {/* Step 1 */}
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 font-bold flex items-center justify-center shrink-0 text-[10px]">1</span>
+                <span>Click the button below — a secure M-PESA payment page opens in a new tab</span>
               </div>
-            )}
-
-            {/* Success */}
-            {stkStatus === "success" && (
-              <div className="flex flex-col items-center gap-2 py-3 text-center">
-                <CheckCircle2 className="w-8 h-8 text-green-400" />
-                <p className="text-sm font-bold text-green-400">Payment confirmed!</p>
-                <p className="text-xs text-muted-foreground">KSh {amount.toLocaleString()} has been credited to your live account.</p>
-                <button onClick={() => onOpenChange(false)} className="mt-2 text-xs underline text-primary hover:text-primary/80">Close</button>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 font-bold flex items-center justify-center shrink-0 text-[10px]">2</span>
+                <span>Enter your phone number and complete the M-PESA payment</span>
               </div>
-            )}
-
-            {/* Failed */}
-            {stkStatus === "failed" && (
-              <div className="space-y-2">
-                <div className="flex items-start gap-2 bg-red-500/10 rounded-lg p-3">
-                  <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-400">{stkError}</p>
-                </div>
-                <button
-                  onClick={resetStk}
-                  className="w-full h-9 rounded-lg border border-white/10 text-sm text-muted-foreground hover:text-white hover:border-white/30 transition-colors"
-                >
-                  Try Again
-                </button>
+              <div className="flex items-start gap-2">
+                <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 font-bold flex items-center justify-center shrink-0 text-[10px]">3</span>
+                <span>Come back here and confirm with your M-PESA transaction ID below</span>
               </div>
-            )}
+            </div>
 
-            {stkStatus !== "success" && (
-              <div className="flex items-center gap-2 pt-1 border-t border-green-500/20">
-                <CheckCircle2 className="w-3 h-3 text-green-400 shrink-0" />
-                <p className="text-xs text-green-400">Funds reflect automatically after payment.</p>
-              </div>
-            )}
-          </div>
+            <div className="flex items-center justify-between bg-background/40 rounded-lg px-3 py-2 text-sm">
+              <span className="text-muted-foreground">Amount to pay:</span>
+              <span className="font-bold text-primary text-base">KSh {amount.toLocaleString()}</span>
+            </div>
 
-          {/* ── Balance not reflecting ── */}
-          <div className="rounded-xl border border-red-500/50 overflow-hidden">
             <button
               type="button"
-              onClick={() => setShowConfirm(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-red-500/15 hover:bg-red-500/25 transition-colors"
-              data-testid="button-toggle-confirm"
+              onClick={openPaymentPage}
+              className="w-full h-11 flex items-center justify-center gap-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-bold text-sm transition-colors"
+              data-testid="button-pay-mpesa"
             >
-              <span className="text-red-400 font-extrabold text-base tracking-wide">⚠ Balance not reflecting?</span>
-              {showConfirm ? <ChevronUp className="w-5 h-5 text-red-400" /> : <ChevronDown className="w-5 h-5 text-red-400" />}
+              <Smartphone className="w-4 h-4" />
+              Pay KSh {amount.toLocaleString()} via M-PESA
+              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
             </button>
 
-            {showConfirm && (
-              <div className="px-4 pb-4 border-t border-white/10 bg-background/30">
-                <p className="text-xs text-muted-foreground mt-3 mb-3">
-                  Submit your M-PESA transaction ID and your balance will be credited instantly.
+            {/* After clicking pay — show confirm form inline */}
+            {paid && (
+              <div className="pt-2 border-t border-green-500/20 space-y-3">
+                <p className="text-xs text-green-400 font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Payment page opened — confirm your transaction below once paid
                 </p>
                 <Form {...confirmForm}>
                   <form onSubmit={confirmForm.handleSubmit(onConfirmSubmit)} className="space-y-3">
@@ -292,32 +163,14 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
                       name="transactionId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">M-PESA Transaction ID</FormLabel>
+                          <FormLabel className="text-xs text-muted-foreground">M-PESA Transaction ID (from SMS)</FormLabel>
                           <FormControl>
                             <Input
                               placeholder="e.g. QHK7X2PLMN"
                               {...field}
-                              className="bg-background/50 border-white/10 uppercase h-9 text-sm"
+                              onChange={e => field.onChange(e.target.value.toUpperCase())}
+                              className="bg-background/50 border-white/10 uppercase h-9 text-sm tracking-wider"
                               data-testid="input-mpesa-txn-id"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={confirmForm.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Amount Sent (KES)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              placeholder="1000"
-                              {...field}
-                              className="bg-background/50 border-white/10 h-9 text-sm"
-                              data-testid="input-confirm-amount"
                             />
                           </FormControl>
                           <FormMessage />
@@ -330,13 +183,86 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
                       className="w-full h-9 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
                       data-testid="button-submit-txn-id"
                     >
-                      {submitting ? "Submitting..." : "Submit Transaction ID"}
+                      {submitting ? "Crediting..." : "Confirm Payment & Credit Balance"}
                     </Button>
                   </form>
                 </Form>
               </div>
             )}
           </div>
+
+          {/* ── Balance not reflecting fallback ── */}
+          {!paid && (
+            <div className="rounded-xl border border-white/10 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 transition-colors"
+                data-testid="button-toggle-confirm"
+              >
+                <span className="text-muted-foreground font-semibold text-sm">Already paid? Enter transaction ID</span>
+                {showConfirm ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              </button>
+
+              {showConfirm && (
+                <div className="px-4 pb-4 border-t border-white/10 bg-background/30">
+                  <p className="text-xs text-muted-foreground mt-3 mb-3">
+                    Enter the M-PESA transaction ID from your confirmation SMS to credit your balance instantly.
+                  </p>
+                  <Form {...confirmForm}>
+                    <form onSubmit={confirmForm.handleSubmit(onConfirmSubmit)} className="space-y-3">
+                      <FormField
+                        control={confirmForm.control}
+                        name="transactionId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">M-PESA Transaction ID</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="e.g. QHK7X2PLMN"
+                                {...field}
+                                onChange={e => field.onChange(e.target.value.toUpperCase())}
+                                className="bg-background/50 border-white/10 uppercase h-9 text-sm tracking-wider"
+                                data-testid="input-mpesa-txn-id-fallback"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={confirmForm.control}
+                        name="amount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Amount Paid (KES)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                placeholder="1000"
+                                {...field}
+                                className="bg-background/50 border-white/10 h-9 text-sm"
+                                data-testid="input-confirm-amount"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="submit"
+                        disabled={submitting}
+                        className="w-full h-9 text-sm font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+                        data-testid="button-submit-txn-id-fallback"
+                      >
+                        {submitting ? "Crediting..." : "Credit My Balance"}
+                      </Button>
+                    </form>
+                  </Form>
+                </div>
+              )}
+            </div>
+          )}
 
         </div>
       </DialogContent>
