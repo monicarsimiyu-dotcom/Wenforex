@@ -94,9 +94,9 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
           </div>
 
           {/* ── Pay with M-PESA ── */}
-          <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4 space-y-3">
+          <div className="rounded-xl border border-green-500/40 bg-green-500/15 p-4 space-y-3">
             <p className="text-sm font-bold text-white flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-green-400" /> Pay with M-PESA
+              <Smartphone className="w-4 h-4 text-green-300" /> Pay with M-PESA
             </p>
 
             <div className="space-y-2">

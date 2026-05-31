@@ -172,8 +172,8 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
               className="h-9 px-3 sm:px-4 border-white/20 bg-transparent hover:bg-white/5 text-white font-bold"
               data-testid="button-login"
             >
-              <LogIn className="w-4 h-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Login</span>
+              <LogIn className="w-4 h-4 mr-1.5" />
+              <span>Login</span>
             </Button>
             <Button
               onClick={() => {
@@ -183,8 +183,8 @@ export function Header({ onDeposit, onWithdraw }: HeaderProps) {
               className="h-9 px-3 sm:px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
               data-testid="button-register"
             >
-              <UserPlus className="w-4 h-4 sm:mr-1.5" />
-              <span className="hidden sm:inline">Register</span>
+              <UserPlus className="w-4 h-4 mr-1.5" />
+              <span>Register</span>
             </Button>
           </div>
         )}
