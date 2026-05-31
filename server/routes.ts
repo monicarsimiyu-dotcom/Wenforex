@@ -8,6 +8,7 @@ import { registerLocalAuth } from "./local-auth";
 import { z } from "zod";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
+const TINYPESA_API_KEY = process.env.TINYPESA_API_KEY || "";
 
 // Multi-market state (simulated prices)
 type MarketState = { price: number; basePrice: number };
@@ -231,6 +232,87 @@ export async function registerRoutes(
         return res.status(400).json({ message: err.errors[0].message });
       }
       res.status(400).json({ message: "Invalid request" });
+    }
+  });
+
+  // TinyPesa STK Push — initiate
+  app.post("/api/deposit/tinypesa/initiate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { amount, phone } = z.object({
+        amount: z.coerce.number().min(1, "Minimum KSh 1"),
+        phone: z.string().min(9, "Enter a valid phone number"),
+      }).parse(req.body);
+      const userId = (req.user as any).claims.sub;
+      const reference = `WF-${Date.now()}`;
+
+      // Normalise to 254XXXXXXXXX
+      let msisdn = phone.replace(/\s+/g, "").replace(/^\+/, "");
+      if (msisdn.startsWith("0")) msisdn = "254" + msisdn.slice(1);
+      if (!msisdn.startsWith("254")) msisdn = "254" + msisdn;
+
+      const formData = new URLSearchParams();
+      formData.append("amount", String(Math.round(amount)));
+      formData.append("msisdn", msisdn);
+      formData.append("account_no", reference);
+
+      const tpRes = await fetch("https://api.tinypesa.com/api/v1/express/initialize/", {
+        method: "POST",
+        headers: {
+          "Apikey": TINYPESA_API_KEY,
+          "Accept": "application/json",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+      });
+      const data = await tpRes.json() as any;
+      if (!tpRes.ok || data.success !== 1) {
+        return res.status(400).json({ message: data.message || "Failed to initiate M-PESA payment" });
+      }
+
+      await storage.createTransaction({
+        userId,
+        accountType: "live",
+        type: "deposit",
+        amount: String(amount),
+        reference,
+        paymentMethod: "mpesa",
+      });
+
+      res.json({ requestId: data.request_id, reference });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(400).json({ message: err.message || "Invalid request" });
+    }
+  });
+
+  // TinyPesa STK Push — poll status
+  app.get("/api/deposit/tinypesa/status/:requestId", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const { requestId } = req.params;
+      const userId = (req.user as any).claims.sub;
+      const { reference, amount } = z.object({
+        reference: z.string(),
+        amount: z.coerce.number(),
+      }).parse(req.query);
+
+      const tpRes = await fetch(`https://api.tinypesa.com/api/v1/express/get_status/${requestId}/`, {
+        headers: { "Apikey": TINYPESA_API_KEY, "Accept": "application/json" },
+      });
+      const data = await tpRes.json() as any;
+
+      if (data.is_complete && data.is_successful) {
+        await storage.updateTransactionStatus(reference, "success");
+        await storage.updateBalance(userId, "live", amount);
+        return res.json({ status: "success", amount });
+      }
+      if (data.is_complete && !data.is_successful) {
+        return res.json({ status: "failed", message: "Payment was not completed" });
+      }
+      res.json({ status: "pending" });
+    } catch (err: any) {
+      res.status(400).json({ message: "Failed to check status" });
     }
   });
 
