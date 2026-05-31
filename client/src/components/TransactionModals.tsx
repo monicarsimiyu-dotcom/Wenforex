@@ -35,7 +35,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const [phone, setPhone] = useState("");
   const [stkState, setStkState] = useState<"idle" | "sending" | "sent">("idle");
 
-  const phoneValid = /^(?:\+?254|0)?7\d{8}$/.test(phone.replace(/\s+/g, ""));
+  const phoneValid = /^(?:\+?254|0)?[17]\d{8}$/.test(phone.replace(/\s+/g, ""));
 
   const sendStkPush = async () => {
     if (!phoneValid) {
@@ -149,7 +149,7 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
 
 const mpesaSchema = z.object({
   amount: z.coerce.number().min(1000, "Minimum withdrawal is KSh 1,000"),
-  phoneNumber: z.string().regex(/^(?:\+?254|0)?7\d{8}$/, "Enter valid Kenyan number"),
+  phoneNumber: z.string().regex(/^(?:\+?254|0)?[17]\d{8}$/, "Enter valid Kenyan number"),
 });
 
 const bankSchema = z.object({

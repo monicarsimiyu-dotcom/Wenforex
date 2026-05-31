@@ -269,7 +269,7 @@ export async function registerRoutes(
     try {
       const { amount, phone } = z.object({
         amount: z.coerce.number().min(1, "Minimum KSh 1"),
-        phone: z.string().regex(/^(?:\+?254|0)?7\d{8}$/, "Enter a valid Safaricom number"),
+        phone: z.string().regex(/^(?:\+?254|0)?[17]\d{8}$/, "Enter a valid Safaricom number"),
       }).parse(req.body);
       const userId = (req.user as any).claims.sub;
       const reference = `WF-${Date.now()}`;
