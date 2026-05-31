@@ -16,6 +16,24 @@ interface TradingChartProps {
 }
 
 const MAX_POINTS = 50;
+const TICK_MS = 1000;
+
+// Build a plausible price history leading up to `price` so the chart shows an
+// accumulated curve the moment a user lands, instead of starting on a flat line.
+function seedHistory(price: number): { time: number; price: number }[] {
+  const points: { time: number; price: number }[] = [];
+  const now = Date.now();
+  const volatility = price * 0.001; // matches server tick volatility
+  let p = price;
+  // Walk backwards from the current price, then reverse into chronological order
+  for (let i = 0; i < MAX_POINTS - 1; i++) {
+    p = p - (Math.random() - 0.5) * 2 * volatility;
+    points.push({ time: now - (i + 1) * TICK_MS, price: p });
+  }
+  points.reverse();
+  points.push({ time: now, price });
+  return points;
+}
 
 export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: TradingChartProps) {
   // Store price history per market so switching markets doesn't reset the curve
@@ -27,14 +45,15 @@ export function TradingChart({ currentPrice, marketKey, tradeMarkers = [] }: Tra
     if (!currentPrice || !marketKey) return;
     const key = marketKey;
 
-    if (!historyRef.current[key]) {
-      historyRef.current[key] = [];
+    if (!historyRef.current[key] || historyRef.current[key].length === 0) {
+      // First price for this market — seed an accumulated history curve
+      historyRef.current[key] = seedHistory(currentPrice);
+    } else {
+      historyRef.current[key] = [
+        ...historyRef.current[key],
+        { time: Date.now(), price: currentPrice },
+      ].slice(-MAX_POINTS);
     }
-
-    historyRef.current[key] = [
-      ...historyRef.current[key],
-      { time: Date.now(), price: currentPrice },
-    ].slice(-MAX_POINTS);
 
     setData([...historyRef.current[key]]);
   }, [currentPrice, marketKey]);
