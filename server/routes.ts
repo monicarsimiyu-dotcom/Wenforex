@@ -8,7 +8,35 @@ import { registerLocalAuth } from "./local-auth";
 import { z } from "zod";
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
-const TINYPESA_API_KEY = process.env.TINYPESA_API_KEY || "";
+
+// TinyPesa hosted payment-link config (M-PESA STK push via the link's public open_data API)
+const TINYPESA_LINK_SLUG = process.env.TINYPESA_LINK_SLUG || "tradepay";
+const TINYPESA_API_BASE = "https://api.tinypesa.com/api/v1";
+
+// Resolve the MpesaForm widget id + payment method id for the link (cached).
+let tinyPesaLinkCache: { widgetId: string; paymentMethodId: string } | null = null;
+async function getTinyPesaLink(): Promise<{ widgetId: string; paymentMethodId: string }> {
+  if (tinyPesaLinkCache) return tinyPesaLinkCache;
+  const res = await fetch(`${TINYPESA_API_BASE}/open_data/${TINYPESA_LINK_SLUG}/get_open_link/`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error("Could not load M-PESA payment link configuration");
+  const data = (await res.json()) as any;
+  const paymentMethodId = data?.payment_methods?.[0]?.id;
+  let widgetId: string | undefined;
+  for (const page of data?.pages || []) {
+    for (const w of page?.widgets_detailed || []) {
+      if (w?.tiny_widget_detailed?.view_widget === "MpesaForm") {
+        widgetId = w.id; // outer widget instance id (NOT tiny_widget_detailed.id)
+        break;
+      }
+    }
+    if (widgetId) break;
+  }
+  if (!widgetId || !paymentMethodId) throw new Error("M-PESA payment link is missing a payment form");
+  tinyPesaLinkCache = { widgetId, paymentMethodId };
+  return tinyPesaLinkCache;
+}
 
 // Multi-market state (simulated prices)
 type MarketState = { price: number; basePrice: number };
@@ -241,7 +269,7 @@ export async function registerRoutes(
     try {
       const { amount, phone } = z.object({
         amount: z.coerce.number().min(1, "Minimum KSh 1"),
-        phone: z.string().min(9, "Enter a valid phone number"),
+        phone: z.string().regex(/^(?:\+?254|0)?7\d{8}$/, "Enter a valid Safaricom number"),
       }).parse(req.body);
       const userId = (req.user as any).claims.sub;
       const reference = `WF-${Date.now()}`;
@@ -251,23 +279,24 @@ export async function registerRoutes(
       if (msisdn.startsWith("0")) msisdn = "254" + msisdn.slice(1);
       if (!msisdn.startsWith("254")) msisdn = "254" + msisdn;
 
-      const formData = new URLSearchParams();
-      formData.append("amount", String(Math.round(amount)));
-      formData.append("msisdn", msisdn);
-      formData.append("account_no", reference);
+      // Fire the STK push; if the cached link config is stale, refresh once and retry.
+      const fireStk = async () => {
+        const { widgetId, paymentMethodId } = await getTinyPesaLink();
+        const r = await fetch(`${TINYPESA_API_BASE}/open_data/${widgetId}/initiate_payment/`, {
+          method: "POST",
+          headers: { "Accept": "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: msisdn, amount: Math.round(amount), payment_method: paymentMethodId }),
+        });
+        return { r, data: (await r.json()) as any };
+      };
 
-      const tpRes = await fetch("https://api.tinypesa.com/api/v1/express/initialize/", {
-        method: "POST",
-        headers: {
-          "Apikey": TINYPESA_API_KEY,
-          "Accept": "application/json",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: formData.toString(),
-      });
-      const data = await tpRes.json() as any;
-      if (!tpRes.ok || data.success !== 1) {
-        return res.status(400).json({ message: data.message || "Failed to initiate M-PESA payment" });
+      let { r: tpRes, data } = await fireStk();
+      if (!tpRes.ok || !data.success || !data.request_id) {
+        tinyPesaLinkCache = null; // drop possibly-stale config and try once more
+        ({ r: tpRes, data } = await fireStk());
+      }
+      if (!tpRes.ok || !data.success || !data.request_id) {
+        return res.status(400).json({ message: data.message || "Failed to send M-PESA prompt" });
       }
 
       await storage.createTransaction({
@@ -286,36 +315,6 @@ export async function registerRoutes(
     }
   });
 
-  // TinyPesa STK Push — poll status
-  app.get("/api/deposit/tinypesa/status/:requestId", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    try {
-      const { requestId } = req.params;
-      const userId = (req.user as any).claims.sub;
-      const { reference, amount } = z.object({
-        reference: z.string(),
-        amount: z.coerce.number(),
-      }).parse(req.query);
-
-      const tpRes = await fetch(`https://api.tinypesa.com/api/v1/express/get_status/${requestId}/`, {
-        headers: { "Apikey": TINYPESA_API_KEY, "Accept": "application/json" },
-      });
-      const data = await tpRes.json() as any;
-
-      if (data.is_complete && data.is_successful) {
-        await storage.updateTransactionStatus(reference, "success");
-        await storage.updateBalance(userId, "live", amount);
-        return res.json({ status: "success", amount });
-      }
-      if (data.is_complete && !data.is_successful) {
-        return res.json({ status: "failed", message: "Payment was not completed" });
-      }
-      res.json({ status: "pending" });
-    } catch (err: any) {
-      res.status(400).json({ message: "Failed to check status" });
-    }
-  });
-
   // M-PESA manual deposit confirmation (user submits transaction ID)
   app.post("/api/deposit/mpesa-confirm", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -326,6 +325,13 @@ export async function registerRoutes(
       }).parse(req.body);
       const userId = (req.user as any).claims.sub;
       const reference = `MPESA-${transactionId.toUpperCase()}`;
+
+      // Idempotency: a given M-PESA transaction code can only be credited once.
+      const existing = await storage.getTransactionByReference(reference);
+      if (existing) {
+        return res.status(409).json({ message: "This M-PESA code has already been used." });
+      }
+
       await storage.createTransaction({
         userId,
         accountType: "live",

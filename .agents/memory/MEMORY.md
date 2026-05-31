@@ -1,0 +1,1 @@
+- [TinyPesa STK push](tinypesa-stk.md) — trigger M-PESA STK via hosted payment-link open_data/initiate_payment (no API key); no poll endpoint.

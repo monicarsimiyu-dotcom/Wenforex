@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Building2, CheckCircle2, Copy } from "lucide-react";
+import { Smartphone, Building2, CheckCircle2, Loader2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // ── Deposit Modal ──────────────────────────────────────────────────────────
@@ -25,8 +25,6 @@ interface DepositModalProps {
   userEmail?: string;
 }
 
-const TILL_NUMBER = "5387520";
-
 const QUICK_PICKS = [
   { kes: 1300, usd: 10 },
   { kes: 2600, usd: 20 },
@@ -38,7 +36,8 @@ const QUICK_PICKS = [
 export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const { toast } = useToast();
   const [amount, setAmount] = useState(1300);
-  const [copied, setCopied] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [stkState, setStkState] = useState<"idle" | "sending" | "sent">("idle");
   const [submitting, setSubmitting] = useState(false);
 
   const confirmForm = useForm<z.infer<typeof confirmSchema>>({
@@ -46,11 +45,25 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
     defaultValues: { transactionId: "", amount },
   });
 
-  const copyTill = () => {
-    navigator.clipboard.writeText(TILL_NUMBER).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
+  const phoneValid = /^(?:\+?254|0)?7\d{8}$/.test(phone.replace(/\s+/g, ""));
+
+  const sendStkPush = async () => {
+    if (!phoneValid) {
+      toast({ title: "Invalid phone number", description: "Enter a valid Safaricom number, e.g. 07XX XXX XXX", variant: "destructive" });
+      return;
+    }
+    setStkState("sending");
+    try {
+      await apiRequest("POST", "/api/deposit/tinypesa/initiate", { amount, phone });
+      setStkState("sent");
+      toast({
+        title: "STK push sent!",
+        description: "Check your phone and enter your M-PESA PIN to approve the payment.",
+      });
+    } catch (err: any) {
+      setStkState("idle");
+      toast({ title: "Could not send STK push", description: err.message, variant: "destructive" });
+    }
   };
 
   const onConfirmSubmit = async (data: z.infer<typeof confirmSchema>) => {
@@ -63,6 +76,8 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
         description: `KSh ${data.amount.toLocaleString()} added to your live account.`,
       });
       confirmForm.reset();
+      setStkState("idle");
+      setPhone("");
       onOpenChange(false);
     } catch (err: any) {
       toast({ title: "Submission failed", description: err.message, variant: "destructive" });
@@ -87,8 +102,9 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
               type="number"
               value={amount}
               onChange={e => {
-                setAmount(Math.max(1, Number(e.target.value) || 0));
-                confirmForm.setValue("amount", Math.max(1, Number(e.target.value) || 0));
+                const v = Math.max(1, Number(e.target.value) || 0);
+                setAmount(v);
+                confirmForm.setValue("amount", v);
               }}
               className="bg-background/50 border-white/10 focus:border-primary text-lg h-11"
               data-testid="input-deposit-amount"
@@ -112,54 +128,58 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
             </div>
           </div>
 
-          {/* ── M-PESA Till instructions ── */}
+          {/* ── STK push ── */}
           <div className="rounded-xl border border-green-500/25 bg-green-500/5 p-4 space-y-3">
             <p className="text-sm font-bold text-white flex items-center gap-2">
-              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA Till
+              <Smartphone className="w-4 h-4 text-green-400" /> Pay via M-PESA (STK Push)
+            </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Enter your M-PESA number and we'll send a payment prompt straight to your phone — no till numbers, no codes to dial.
             </p>
 
-            {/* Steps */}
             <div className="space-y-2">
-              {[
-                { n: 1, text: "Open M-PESA on your phone" },
-                { n: 2, text: "Select Lipa na M-PESA → Buy Goods & Services" },
-                { n: 3, text: <span>Enter Till Number: <span className="text-white font-bold tracking-widest">{TILL_NUMBER}</span></span> },
-                { n: 4, text: <span>Enter amount: <span className="text-primary font-bold">KSh {amount.toLocaleString()}</span></span> },
-                { n: 5, text: "Enter your M-PESA PIN and confirm" },
-              ].map(({ n, text }) => (
-                <div key={n} className="flex items-start gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-green-500/20 text-green-400 font-bold flex items-center justify-center shrink-0 text-[10px] mt-0.5">{n}</span>
-                  <span className="text-xs text-muted-foreground leading-relaxed">{text}</span>
-                </div>
-              ))}
+              <label className="text-xs text-muted-foreground">M-PESA Phone Number</label>
+              <Input
+                type="tel"
+                inputMode="numeric"
+                placeholder="07XX XXX XXX"
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                className="bg-background/50 border-white/10 focus:border-primary h-11 text-base tracking-wide"
+                data-testid="input-mpesa-phone"
+              />
             </div>
 
-            {/* Till number display + copy */}
-            <div className="flex items-center justify-between bg-background/60 rounded-lg px-4 py-3 border border-green-500/20">
-              <div>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">Till Number</p>
-                <p className="text-2xl font-bold text-white tracking-widest">{TILL_NUMBER}</p>
+            <Button
+              type="button"
+              onClick={sendStkPush}
+              disabled={stkState === "sending" || !phoneValid}
+              className="w-full h-11 text-sm font-bold bg-green-500 hover:bg-green-500/90 text-white"
+              data-testid="button-send-stk"
+            >
+              {stkState === "sending" ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending prompt…</>
+              ) : stkState === "sent" ? (
+                <><Smartphone className="w-4 h-4 mr-2" /> Resend STK Push</>
+              ) : (
+                <><Smartphone className="w-4 h-4 mr-2" /> Send STK Push — KSh {amount.toLocaleString()}</>
+              )}
+            </Button>
+
+            {stkState === "sent" && (
+              <div className="flex items-start gap-2.5 rounded-lg bg-background/60 border border-green-500/20 px-3 py-2.5" data-testid="status-stk-sent">
+                <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Prompt sent to <span className="text-white font-semibold">{phone}</span>. Enter your M-PESA PIN to approve, then confirm below to credit your balance.
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={copyTill}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
-                  copied
-                    ? "border-green-500 text-green-400 bg-green-500/10"
-                    : "border-white/15 text-muted-foreground hover:text-white hover:border-white/30"
-                }`}
-                data-testid="button-copy-till"
-              >
-                {copied ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied!" : "Copy"}
-              </button>
-            </div>
+            )}
           </div>
 
           {/* ── Confirm transaction ── */}
           <div className="rounded-xl border border-white/10 bg-white/3 p-4 space-y-3">
             <p className="text-sm font-bold text-white">Confirm your payment</p>
-            <p className="text-xs text-muted-foreground">After paying, enter the M-PESA transaction code from your confirmation SMS — your balance will be credited instantly.</p>
+            <p className="text-xs text-muted-foreground">After approving the prompt, enter the M-PESA transaction code from your confirmation SMS — your balance will be credited instantly.</p>
 
             <Form {...confirmForm}>
               <form onSubmit={confirmForm.handleSubmit(onConfirmSubmit)} className="space-y-3">
