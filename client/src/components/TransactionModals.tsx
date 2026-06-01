@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useWithdraw } from "@/hooks/use-wallet";
 import { useToast } from "@/hooks/use-toast";
-import { Smartphone, Building2, CheckCircle2, Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Smartphone, Building2, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 // ── Deposit Modal ──────────────────────────────────────────────────────────
 
@@ -33,9 +33,36 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const { toast } = useToast();
   const [amount, setAmount] = useState(1300);
   const [phone, setPhone] = useState("");
-  const [stkState, setStkState] = useState<"idle" | "sending" | "sent">("idle");
+  const [stkState, setStkState] = useState<"idle" | "sending" | "sent" | "success" | "failed">("idle");
 
   const phoneValid = /^(?:\+?254|0)?[17]\d{8}$/.test(phone.replace(/\s+/g, ""));
+
+  // Poll the deposit status until TinyPesa confirms payment (or it times out),
+  // then credit reflects automatically in the wallet.
+  const pollStatus = (requestId: string) => {
+    const deadline = Date.now() + 150000; // ~2.5 min
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/deposit/tinypesa/status/${requestId}`, { credentials: "include" });
+        const { status } = await res.json();
+        if (status === "success") {
+          setStkState("success");
+          await queryClient.invalidateQueries({ queryKey: ["/api/wallet"] });
+          toast({ title: "Deposit successful!", description: `KSh ${amount.toLocaleString()} added to your live account.` });
+          return;
+        }
+        if (status === "failed") {
+          setStkState("failed");
+          toast({ title: "Payment not completed", description: "The M-PESA payment was cancelled or failed.", variant: "destructive" });
+          return;
+        }
+      } catch {
+        /* keep polling */
+      }
+      if (Date.now() < deadline) setTimeout(tick, 3000);
+    };
+    setTimeout(tick, 3000);
+  };
 
   const sendStkPush = async () => {
     if (!phoneValid) {
@@ -44,12 +71,14 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
     }
     setStkState("sending");
     try {
-      await apiRequest("POST", "/api/deposit/tinypesa/initiate", { amount, phone });
+      const res = await apiRequest("POST", "/api/deposit/tinypesa/initiate", { amount, phone });
+      const { requestId } = await res.json();
       setStkState("sent");
       toast({
         title: "STK push sent!",
         description: "Check your phone and enter your M-PESA PIN to complete the payment.",
       });
+      if (requestId) pollStatus(requestId);
     } catch (err: any) {
       setStkState("idle");
       toast({ title: "Could not send STK push", description: err.message, variant: "destructive" });
@@ -123,7 +152,11 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
               {stkState === "sending" ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending prompt…</>
               ) : stkState === "sent" ? (
-                <><Smartphone className="w-4 h-4 mr-2" /> Resend Prompt</>
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Waiting for payment…</>
+              ) : stkState === "success" ? (
+                <><Smartphone className="w-4 h-4 mr-2" /> Pay Again</>
+              ) : stkState === "failed" ? (
+                <><Smartphone className="w-4 h-4 mr-2" /> Retry Payment</>
               ) : (
                 <><Smartphone className="w-4 h-4 mr-2" /> Pay KSh {amount.toLocaleString()}</>
               )}
@@ -131,9 +164,27 @@ export function DepositModal({ open, onOpenChange }: DepositModalProps) {
 
             {stkState === "sent" && (
               <div className="flex items-start gap-2.5 rounded-lg bg-background/60 border border-green-500/20 px-3 py-2.5" data-testid="status-stk-sent">
-                <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                <Loader2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5 animate-spin" />
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Payment prompt sent to <span className="text-white font-semibold">{phone}</span>. Enter your M-PESA PIN on your phone to complete the deposit.
+                  Payment prompt sent to <span className="text-white font-semibold">{phone}</span>. Enter your M-PESA PIN — your balance updates automatically once payment is confirmed.
+                </p>
+              </div>
+            )}
+
+            {stkState === "success" && (
+              <div className="flex items-start gap-2.5 rounded-lg bg-green-500/15 border border-green-500/40 px-3 py-2.5" data-testid="status-stk-success">
+                <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-green-100 leading-relaxed">
+                  Payment confirmed — <span className="font-semibold">KSh {amount.toLocaleString()}</span> has been added to your live account.
+                </p>
+              </div>
+            )}
+
+            {stkState === "failed" && (
+              <div className="flex items-start gap-2.5 rounded-lg bg-red-500/10 border border-red-500/30 px-3 py-2.5" data-testid="status-stk-failed">
+                <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <p className="text-xs text-red-100 leading-relaxed">
+                  Payment was cancelled or not completed. You can try again.
                 </p>
               </div>
             )}

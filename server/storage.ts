@@ -22,6 +22,7 @@ export interface IStorage {
   getTransactions(userId: string, accountType: string): Promise<Transaction[]>;
   getTransactionByReference(reference: string): Promise<Transaction | undefined>;
   updateTransactionStatus(reference: string, status: string): Promise<Transaction>;
+  markTransactionSuccessful(reference: string): Promise<Transaction | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -113,6 +114,18 @@ export class DatabaseStorage implements IStorage {
       .update(transactions)
       .set({ status })
       .where(eq(transactions.reference, reference))
+      .returning();
+    return updated;
+  }
+
+  // Atomic compare-and-set: flips a pending tx to success and returns the row
+  // only if THIS call performed the transition. Returns undefined otherwise
+  // (already credited or not pending), so callers never double-credit.
+  async markTransactionSuccessful(reference: string): Promise<Transaction | undefined> {
+    const [updated] = await db
+      .update(transactions)
+      .set({ status: "success" })
+      .where(and(eq(transactions.reference, reference), eq(transactions.status, "pending")))
       .returning();
     return updated;
   }

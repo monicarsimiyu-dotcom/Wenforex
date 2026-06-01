@@ -18,4 +18,9 @@ The TinyPesa **private REST API** (`https://api.tinypesa.com/api/v1/express/init
 
 **Why no auth:** the link page calls this publicly; the widget id + payment_method id ARE the credentials.
 
-**Status:** there is NO public REST status/poll endpoint. The hosted page gets success/fail only via Pusher (channel `transaction-<request_id>`, event `transaction-event`, payload `{success}`) which needs PUBLIC_PUSHER_APP_KEY/CLUSTER the link doesn't have. So to credit a balance, use a separate confirmation (M-PESA SMS code) or a TinyPesa dashboard webhook — you cannot poll status from the open_data API.
+**Status — real-time result via Pusher (this is how to auto-credit):** there is NO public REST status/poll endpoint, but the hosted page receives success/fail over **Pusher** and those keys are PUBLIC (hardcoded in the hosted page's JS, fetchable from the page HTML):
+- APP_KEY `fc67720ca931a283f5c5`, CLUSTER `ap2`.
+- Channel `transaction-<request_id>` (PUBLIC — no `private-` prefix, so NO Pusher auth/subscribe-signature needed).
+- Subscribe succeeds (`pusher_internal:subscription_succeeded`); success arrives as event `transaction-event` with JSON payload `{ "success": true }`.
+
+**How we use it:** a server-side raw-`ws` Pusher client (`server/tinypesa-pusher.ts`, one shared socket, subscribe/unsubscribe per request, 30s ping, reconnect-on-close while watchers pending) exposes `watchTinyPesaPayment(requestId): Promise<boolean>`. On `initiate`, store `{userId,reference}` keyed by request_id and start the watcher; on success → `updateTransactionStatus(success)` + `updateBalance(userId,"live",amount)`. Client polls `GET /api/deposit/tinypesa/status/:requestId` every 3s and invalidates `["/api/wallet"]` on success. This is the ONLY auto-credit path (manual SMS-code confirmation form was removed).

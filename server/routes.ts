@@ -5,7 +5,11 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { registerLocalAuth } from "./local-auth";
+import { watchTinyPesaPayment } from "./tinypesa-pusher";
 import { z } from "zod";
+
+// Maps a TinyPesa request_id -> the pending deposit so the client can poll status.
+const tinyPesaDeposits = new Map<string, { userId: string; reference: string }>();
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || "";
 
@@ -308,45 +312,43 @@ export async function registerRoutes(
         paymentMethod: "mpesa",
       });
 
-      res.json({ requestId: data.request_id, reference });
+      const requestId: string = data.request_id;
+      tinyPesaDeposits.set(requestId, { userId, reference });
+
+      // Listen for the real-time payment result (via TinyPesa's Pusher channel)
+      // and credit the live balance automatically once the customer approves.
+      watchTinyPesaPayment(requestId)
+        .then(async (result) => {
+          if (result === "success") {
+            // Atomic compare-and-set guarantees the credit happens at most once.
+            const credited = await storage.markTransactionSuccessful(reference);
+            if (credited) await storage.updateBalance(userId, "live", amount);
+          } else if (result === "failed") {
+            const tx = await storage.getTransactionByReference(reference);
+            if (tx && tx.status === "pending") await storage.updateTransactionStatus(reference, "failed");
+          }
+          // "timeout" → leave pending; a late real payment must not be marked failed.
+        })
+        .catch((e) => console.error("TinyPesa watch error:", e))
+        .finally(() => {
+          setTimeout(() => tinyPesaDeposits.delete(requestId), 300000);
+        });
+
+      res.json({ requestId, reference });
     } catch (err: any) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(400).json({ message: err.message || "Invalid request" });
     }
   });
 
-  // M-PESA manual deposit confirmation (user submits transaction ID)
-  app.post("/api/deposit/mpesa-confirm", async (req, res) => {
+  // Poll the status of a TinyPesa STK deposit (client polls after sending the prompt)
+  app.get("/api/deposit/tinypesa/status/:requestId", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    try {
-      const { transactionId, amount } = z.object({
-        transactionId: z.string().min(6, "Invalid transaction ID"),
-        amount: z.coerce.number().min(100, "Minimum KSh 100"),
-      }).parse(req.body);
-      const userId = (req.user as any).claims.sub;
-      const reference = `MPESA-${transactionId.toUpperCase()}`;
-
-      // Idempotency: a given M-PESA transaction code can only be credited once.
-      const existing = await storage.getTransactionByReference(reference);
-      if (existing) {
-        return res.status(409).json({ message: "This M-PESA code has already been used." });
-      }
-
-      await storage.createTransaction({
-        userId,
-        accountType: "live",
-        type: "deposit",
-        amount: String(amount),
-        reference,
-        paymentMethod: "mpesa",
-      });
-      await storage.updateTransactionStatus(reference, "success");
-      await storage.updateBalance(userId, "live", amount);
-      res.json({ message: "Balance credited successfully!", amount });
-    } catch (err: any) {
-      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
-      res.status(400).json({ message: "Invalid request" });
-    }
+    const userId = (req.user as any).claims.sub;
+    const rec = tinyPesaDeposits.get(req.params.requestId);
+    if (!rec || rec.userId !== userId) return res.json({ status: "unknown" });
+    const tx = await storage.getTransactionByReference(rec.reference);
+    res.json({ status: tx?.status || "pending" });
   });
 
   // Paystack webhook / callback verification
@@ -362,11 +364,8 @@ export async function registerRoutes(
       });
       const data = await r.json();
       if (data?.data?.status === "success") {
-        const tx = await storage.getTransactionByReference(reference);
-        if (tx && tx.status !== "success") {
-          await storage.updateTransactionStatus(reference, "success");
-          await storage.updateBalance(tx.userId, "live", Number(tx.amount));
-        }
+        const credited = await storage.markTransactionSuccessful(reference);
+        if (credited) await storage.updateBalance(credited.userId, "live", Number(credited.amount));
         return res.json({ status: "success" });
       }
       res.json({ status: data?.data?.status || "failed" });
